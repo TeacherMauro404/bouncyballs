@@ -292,8 +292,8 @@
     </div>
 
     <div class="field">
-      <div class="flabel"><span data-i18n="threshold">Umbral de alerta</span><span class="val" id="thrVal">70%</span></div>
-      <input type="range" id="thr" min="20" max="95" step="5" value="70">
+      <div class="flabel"><span data-i18n="threshold">Umbral de alerta</span><span class="val" id="thrVal">45%</span></div>
+      <input type="range" id="thr" min="15" max="95" step="5" value="45">
       <div class="hint" data-i18n="thresholdHint">Nivel de ruido que dispara el aviso “¡Mucho ruido!”.</div>
     </div>
 
@@ -306,6 +306,9 @@
       <div class="flabel"><span data-i18n="theme">Tema</span></div>
       <div class="seg" id="themeSeg">
         <button data-theme="plastic" class="on" data-i18n="thPlastic">Plástico</button>
+        <button data-theme="sports" data-i18n="thSports">Deportes</button>
+        <button data-theme="faces" data-i18n="thFaces">Caritas</button>
+        <button data-theme="balloons" data-i18n="thBalloons">Globos</button>
         <button data-theme="emoji" data-i18n="thEmoji">Emoji</button>
         <button data-theme="numbers" data-i18n="thNumbers">Números</button>
         <button data-theme="bubbles" data-i18n="thBubbles">Burbujas</button>
@@ -316,9 +319,10 @@
     <div class="field">
       <div class="flabel"><span data-i18n="alert">Alerta de ruido</span></div>
       <div class="seg" id="alertSeg">
-        <button data-alert="none" class="on" data-i18n="alNone">Ninguna</button>
+        <button data-alert="none" data-i18n="alNone">Ninguna</button>
         <button data-alert="beep" data-i18n="alBeep">Pitido</button>
-        <button data-alert="shush" data-i18n="alShush">Shhh</button>
+        <button data-alert="shush" class="on" data-i18n="alShush">Shhh</button>
+        <button data-alert="voice" data-i18n="alVoice">Voz</button>
       </div>
     </div>
 
@@ -356,7 +360,9 @@
       thresholdHint:"Nivel de ruido que dispara el aviso “¡Mucho ruido!”.",
       total:"Cantidad de pelotas", theme:"Tema",
       thPlastic:"Plástico", thEmoji:"Emoji", thNumbers:"Números", thBubbles:"Burbujas", thEyes:"Ojos",
-      alert:"Alerta de ruido", alNone:"Ninguna", alBeep:"Pitido", alShush:"Shhh",
+      thSports:"Deportes", thFaces:"Caritas", thBalloons:"Globos",
+      alert:"Alerta de ruido", alNone:"Ninguna", alBeep:"Pitido", alShush:"Shhh", alVoice:"Voz",
+      voicePhrase:"Silencio, por favor",
       reset:"Reiniciar", fullscreen:"Pantalla completa", tapHint:"Toca la pantalla para agregar pelotas.",
       tooLoud:"¡Mucho ruido!", shush:"Shhh… bajemos la voz",
       startTitle:"Pelotas Saltarinas",
@@ -374,7 +380,9 @@
       thresholdHint:"Noise level that triggers the “Too loud!” alert.",
       total:"Number of balls", theme:"Theme",
       thPlastic:"Plastic", thEmoji:"Emoji", thNumbers:"Numbers", thBubbles:"Bubbles", thEyes:"Eyeballs",
-      alert:"Noise alert", alNone:"None", alBeep:"Beep", alShush:"Shush",
+      thSports:"Sports", thFaces:"Faces", thBalloons:"Balloons",
+      alert:"Noise alert", alNone:"None", alBeep:"Beep", alShush:"Shush", alVoice:"Voice",
+      voicePhrase:"Quiet, please",
       reset:"Reset", fullscreen:"Fullscreen", tapHint:"Tap the screen to add balls.",
       tooLoud:"Too loud!", shush:"Shhh… let's quiet down",
       startTitle:"Bouncy Balls",
@@ -413,9 +421,10 @@
   // ---------- Estado ----------
   const PALETTE = ["#ff6b6b","#ffd93d","#6bcb77","#4d96ff","#ff9f45","#9b5de5","#f15bb5","#00bbf9","#f9c74f","#43aa8b"];
   const EMOJIS = ["😀","😎","🤩","😄","🥳","😺","🐶","🦊","🐸","🐥","🌟","🚀","🍩","🌈","⚽","🎈"];
+  const SPORTS = ["soccer","basket","tennis","volley","beach"];
   const settings = {
-    total:14, sensitivity:6, threshold:70,
-    theme:"plastic", alert:"none", micOn:false
+    total:14, sensitivity:6, threshold:45,
+    theme:"plastic", alert:"shush", micOn:false
   };
   const balls = [];
   let idCounter = 0;
@@ -431,6 +440,8 @@
       r, color: PALETTE[idCounter%PALETTE.length],
       emoji: EMOJIS[Math.floor(Math.random()*EMOJIS.length)],
       num: (idCounter%50)+1,
+      sport: SPORTS[idCounter%SPORTS.length],
+      face: idCounter%4,
       spin:(Math.random()-0.5)*0.1, angle:Math.random()*Math.PI*2
     };
   }
@@ -473,18 +484,34 @@
   function readLevel(){
     if(!audioReady||!analyser){ rawLevel *= 0.9; return; }
     analyser.getByteFrequencyData(freqData);
-    let sum=0; for(let i=0;i<freqData.length;i++) sum += freqData[i]*freqData[i];
-    const rms = Math.sqrt(sum/freqData.length)/255; // 0..1
-    rawLevel = Math.min(1, rms*1.6);
+    // Enfocar en la banda de la voz humana (~150 Hz a 5 kHz), donde vive el ruido de sala
+    const nyquist = audioCtx.sampleRate/2;
+    const binHz = nyquist/freqData.length;
+    const lo = Math.max(1, Math.floor(150/binHz));
+    const hi = Math.min(freqData.length, Math.floor(5000/binHz));
+    let sum=0, count=0, peak=0;
+    for(let i=lo;i<hi;i++){ const v=freqData[i]/255; sum+=v*v; if(v>peak) peak=v; count++; }
+    const rms = Math.sqrt(sum/Math.max(1,count));
+    // mezcla RMS + pico para que la conversación normal registre bien
+    let lvl = rms*0.65 + peak*0.35;
+    // compuerta de ruido: silencio real no debe hacer saltar las pelotas
+    if(lvl < 0.05) lvl = 0;
+    rawLevel = Math.min(1, lvl);
   }
 
   // ---------- Alertas de sonido ----------
   let lastAlertSound=0;
   function playAlertSound(){
     if(!audioCtx || settings.alert==="none") return;
+    if(audioCtx.state==="suspended") audioCtx.resume();
     const now = performance.now();
-    if(now-lastAlertSound < 1600) return;
+    // el shush/voz se repiten cada ~2.6s mientras siga el ruido; el pitido cada ~1.4s
+    const gap = (settings.alert==="shush"||settings.alert==="voice") ? 2600 : 1400;
+    if(now-lastAlertSound < gap) return;
     lastAlertSound = now;
+
+    if(settings.alert==="voice"){ speakAlert(); return; }
+
     if(settings.alert==="beep"){
       const o=audioCtx.createOscillator(), g=audioCtx.createGain();
       o.type="sine"; o.frequency.value=880;
@@ -492,16 +519,54 @@
       g.gain.exponentialRampToValueAtTime(0.25, audioCtx.currentTime+0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime+0.35);
       o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+0.36);
+
     } else if(settings.alert==="shush"){
-      const dur=0.7, sr=audioCtx.sampleRate;
-      const buf=audioCtx.createBuffer(1, sr*dur, sr);
+      // "Shhh" sintetizado: ruido fricativo con forma espectral de una "sh" humana
+      const ac=audioCtx, t0=ac.currentTime, dur=0.9, sr=ac.sampleRate;
+      const buf=ac.createBuffer(1, Math.floor(sr*dur), sr);
       const d=buf.getChannelData(0);
-      for(let i=0;i<d.length;i++){ const env=Math.sin(Math.PI*i/d.length); d[i]=(Math.random()*2-1)*env; }
-      const noise=audioCtx.createBufferSource(); noise.buffer=buf;
-      const bp=audioCtx.createBiquadFilter(); bp.type="bandpass"; bp.frequency.value=5200; bp.Q.value=1.4;
-      const g=audioCtx.createGain(); g.gain.value=0.28;
-      noise.connect(bp).connect(g).connect(audioCtx.destination); noise.start();
+      for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; // ruido blanco base
+      const src=ac.createBufferSource(); src.buffer=buf;
+
+      // corta los graves (quita el "shhh" retumbón)
+      const hp=ac.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=1200; hp.Q.value=0.7;
+      // realza la banda de la "sh" (~4-5 kHz) y la baja suavemente para que se sienta natural
+      const peak=ac.createBiquadFilter(); peak.type="peaking"; peak.Q.value=1.1; peak.gain.value=12;
+      peak.frequency.setValueAtTime(5200, t0);
+      peak.frequency.exponentialRampToValueAtTime(3100, t0+dur);
+      // suaviza los agudos ásperos
+      const lp=ac.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=8200;
+
+      const g=ac.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.5, t0+0.07); // ataque
+      g.gain.setValueAtTime(0.5, t0+0.30);               // sostén
+      g.gain.exponentialRampToValueAtTime(0.0001, t0+dur); // caída
+
+      src.connect(hp).connect(peak).connect(lp).connect(g).connect(ac.destination);
+      src.start(); src.stop(t0+dur);
     }
+  }
+
+  // Voz sintetizada del navegador que dice "Silencio, por favor"
+  let voicesCache=[];
+  function loadVoices(){ if(window.speechSynthesis) voicesCache = speechSynthesis.getVoices()||[]; }
+  if(window.speechSynthesis){
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+  }
+  function speakAlert(){
+    if(!window.speechSynthesis) return;
+    try{
+      speechSynthesis.cancel(); // evita que se acumulen frases
+      const u = new SpeechSynthesisUtterance(t("voicePhrase"));
+      const want = lang==="es" ? "es" : "en";
+      u.lang = lang==="es" ? "es-ES" : "en-US";
+      const match = voicesCache.find(v=>v.lang && v.lang.toLowerCase().startsWith(want));
+      if(match) u.voice = match;
+      u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
+      speechSynthesis.speak(u);
+    }catch(e){}
   }
 
   // ---------- Física ----------
@@ -509,9 +574,9 @@
   let kickAccumulator=0;
 
   function physics(){
-    // nivel efectivo con sensibilidad
-    const sens = settings.sensitivity/6;           // 1 = neutro
-    const level = Math.min(1, rawLevel*sens);
+    // nivel efectivo con sensibilidad (más responsiva: la conversación normal llena el medidor)
+    const gain = settings.sensitivity*0.3 + 0.3;   // sens 1→0.6, 6→2.1, 10→3.3
+    const level = Math.min(1, rawLevel*gain);
     smooth += (level - smooth) * 0.15;
 
     // impulso hacia arriba proporcional al ruido, sobre pelotas cercanas al piso
@@ -521,7 +586,7 @@
       b.vy += GRAVITY;
       const grounded = b.y > H - b.r - 4 && Math.abs(b.vy) < 6;
       if(level > kickThreshold && (grounded || Math.random()<level*0.12)){
-        b.vy -= (1.5 + level*22*sens) * (0.5+Math.random());
+        b.vy -= (1.5 + level*22) * (0.5+Math.random());
         b.vx += (Math.random()-0.5) * level * 10;
       }
       b.vx *= FRICTION; b.vy *= FRICTION;
@@ -593,6 +658,9 @@
         ctx.fillStyle="rgba(255,255,255,.9)"; circle(ex-r*0.1,ey-r*0.1,r*0.09); ctx.fill();
         break;
       }
+      case "sports":{ drawSport(b); break; }
+      case "faces":{ drawFace(b); break; }
+      case "balloons":{ drawBalloon(b); break; }
       default:{ // plastic
         ctx.save();
         ctx.shadowColor="rgba(0,0,0,.18)"; ctx.shadowBlur=r*0.4; ctx.shadowOffsetY=r*0.18;
@@ -607,6 +675,125 @@
     }
   }
   function circle(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); }
+
+  // --- Pelotas deportivas (dibujadas) ---
+  function drawSport(b){
+    const x=b.x,y=b.y,r=b.r,a=b.angle;
+    ctx.save();
+    ctx.shadowColor="rgba(0,0,0,.16)"; ctx.shadowBlur=r*0.35; ctx.shadowOffsetY=r*0.15;
+    ctx.translate(x,y); ctx.rotate(a);
+    if(b.sport==="soccer"){
+      ctx.fillStyle="#fdfdfd"; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill();
+      ctx.shadowBlur=0; ctx.fillStyle="#1e2a38";
+      // pentágono central
+      pentagon(0,0,r*0.34,0); 
+      // pentágonos alrededor
+      for(let i=0;i<5;i++){ const ang=i/5*Math.PI*2 - Math.PI/2; pentagon(Math.cos(ang)*r*0.72,Math.sin(ang)*r*0.72,r*0.2,ang+Math.PI); }
+      ctx.strokeStyle="#1e2a38"; ctx.lineWidth=r*0.05; circle(0,0,r*0.98); ctx.stroke();
+    } else if(b.sport==="basket"){
+      const g=ctx.createRadialGradient(-r*0.3,-r*0.3,r*0.1,0,0,r);
+      g.addColorStop(0,"#ffb066"); g.addColorStop(1,"#e8722a");
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill();
+      ctx.shadowBlur=0; ctx.strokeStyle="#3a2412"; ctx.lineWidth=r*0.06;
+      ctx.beginPath(); ctx.moveTo(0,-r); ctx.lineTo(0,r);
+      ctx.moveTo(-r,0); ctx.lineTo(r,0); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-r*1.15,0,r*0.85,-0.9,0.9); ctx.stroke();
+      ctx.beginPath(); ctx.arc(r*1.15,0,r*0.85,Math.PI-0.9,Math.PI+0.9); ctx.stroke();
+    } else if(b.sport==="tennis"){
+      const g=ctx.createRadialGradient(-r*0.3,-r*0.3,r*0.1,0,0,r);
+      g.addColorStop(0,"#e4ff6b"); g.addColorStop(1,"#b6d61f");
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill();
+      ctx.shadowBlur=0; ctx.strokeStyle="#fdfdfd"; ctx.lineWidth=r*0.09;
+      ctx.beginPath(); ctx.arc(-r*1.1,0,r*0.95,-0.8,0.8); ctx.stroke();
+      ctx.beginPath(); ctx.arc(r*1.1,0,r*0.95,Math.PI-0.8,Math.PI+0.8); ctx.stroke();
+    } else if(b.sport==="volley"){
+      ctx.fillStyle="#fdfdfd"; ctx.beginPath(); ctx.arc(0,0,r,0,7); ctx.fill();
+      ctx.shadowBlur=0; ctx.strokeStyle="#4d96ff"; ctx.lineWidth=r*0.05;
+      for(let i=0;i<3;i++){ ctx.save(); ctx.rotate(i/3*Math.PI*2);
+        ctx.beginPath(); ctx.arc(r*1.2,0,r*0.95,Math.PI-0.7,Math.PI+0.7); ctx.stroke(); ctx.restore(); }
+      ctx.strokeStyle="#e6ecf1"; circle(0,0,r*0.98); ctx.stroke();
+    } else { // beach
+      const cols=["#ff6b6b","#ffd93d","#4d96ff","#6bcb77","#ff9f45","#f15bb5"];
+      ctx.shadowBlur=0;
+      for(let i=0;i<cols.length;i++){
+        ctx.fillStyle=cols[i]; ctx.beginPath(); ctx.moveTo(0,0);
+        ctx.arc(0,0,r,i/cols.length*Math.PI*2,(i+1)/cols.length*Math.PI*2); ctx.closePath(); ctx.fill();
+      }
+      ctx.fillStyle="#fdfdfd"; circle(0,0,r*0.16); ctx.fill();
+    }
+    ctx.restore();
+    // brillo
+    ctx.fillStyle="rgba(255,255,255,.35)";
+    ctx.beginPath(); ctx.ellipse(x-r*0.3,y-r*0.34,r*0.22,r*0.13,-0.6,0,Math.PI*2); ctx.fill();
+  }
+  function pentagon(cx,cy,rad,rot){
+    ctx.beginPath();
+    for(let i=0;i<5;i++){ const a=rot+i/5*Math.PI*2-Math.PI/2; const px=cx+Math.cos(a)*rad, py=cy+Math.sin(a)*rad; i?ctx.lineTo(px,py):ctx.moveTo(px,py); }
+    ctx.closePath(); ctx.fill();
+  }
+
+  // --- Caritas expresivas (dibujadas) ---
+  function drawFace(b){
+    const x=b.x,y=b.y,r=b.r;
+    ctx.save();
+    ctx.shadowColor="rgba(0,0,0,.16)"; ctx.shadowBlur=r*0.35; ctx.shadowOffsetY=r*0.15;
+    const g=ctx.createRadialGradient(x-r*0.3,y-r*0.35,r*0.1,x,y,r);
+    g.addColorStop(0,"#ffe680"); g.addColorStop(0.6,"#ffd93d"); g.addColorStop(1,"#f4b400");
+    ctx.fillStyle=g; circle(x,y,r); ctx.fill();
+    ctx.restore();
+    // si hay mucho ruido, todas ponen cara de "shhh"
+    const worried = smooth*100 >= settings.threshold;
+    ctx.fillStyle="#3a2b00"; ctx.strokeStyle="#3a2b00"; ctx.lineWidth=r*0.09; ctx.lineCap="round";
+    const ex=r*0.34, ey=-r*0.12;
+    if(worried){
+      // ojos ^ ^ y boca chica (shhh)
+      ctx.beginPath(); ctx.moveTo(x-ex-r*0.12,y+ey+r*0.05); ctx.lineTo(x-ex,y+ey-r*0.08); ctx.lineTo(x-ex+r*0.12,y+ey+r*0.05);
+      ctx.moveTo(x+ex-r*0.12,y+ey+r*0.05); ctx.lineTo(x+ex,y+ey-r*0.08); ctx.lineTo(x+ex+r*0.12,y+ey+r*0.05); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x,y+r*0.34,r*0.12,0,Math.PI*2); ctx.fill();
+    } else {
+      // ojos
+      ctx.beginPath(); ctx.arc(x-ex,y+ey,r*0.12,0,Math.PI*2); ctx.arc(x+ex,y+ey,r*0.12,0,Math.PI*2); ctx.fill();
+      // boca según variante
+      ctx.beginPath();
+      if(b.face===0){ ctx.arc(x,y+r*0.05,r*0.42,0.15*Math.PI,0.85*Math.PI); ctx.stroke(); }         // sonrisa
+      else if(b.face===1){ ctx.arc(x,y+r*0.02,r*0.4,0.1*Math.PI,0.9*Math.PI); ctx.fillStyle="#3a2b00"; ctx.fill(); } // risa
+      else if(b.face===2){ ctx.arc(x,y+r*0.28,r*0.16,0,Math.PI*2); ctx.stroke(); }                    // sorpresa
+      else { ctx.moveTo(x-r*0.28,y+r*0.28); ctx.quadraticCurveTo(x,y+r*0.5,x+r*0.28,y+r*0.28); ctx.stroke(); } // contento
+      // mejillas
+      ctx.fillStyle="rgba(255,120,120,.4)";
+      ctx.beginPath(); ctx.arc(x-r*0.5,y+r*0.18,r*0.13,0,Math.PI*2); ctx.arc(x+r*0.5,y+r*0.18,r*0.13,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  // --- Globos (dibujados) ---
+  function drawBalloon(b){
+    const x=b.x,y=b.y,r=b.r;
+    ctx.save();
+    ctx.translate(x,y); ctx.rotate(Math.sin(b.angle)*0.12);
+    // hilo
+    ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(0,r*0.92);
+    ctx.quadraticCurveTo(r*0.25,r*1.4,-r*0.1,r*1.8); ctx.stroke();
+    // cuerpo (forma de globo)
+    ctx.shadowColor="rgba(0,0,0,.14)"; ctx.shadowBlur=r*0.3; ctx.shadowOffsetY=r*0.12;
+    const g=ctx.createRadialGradient(-r*0.3,-r*0.4,r*0.1,0,0,r);
+    g.addColorStop(0,shade(b.color,70)); g.addColorStop(0.5,b.color); g.addColorStop(1,shade(b.color,-25));
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.moveTo(0,r*0.9);
+    ctx.bezierCurveTo(-r*1.05,r*0.5,-r*0.95,-r*0.85,0,-r*0.95);
+    ctx.bezierCurveTo(r*0.95,-r*0.85,r*1.05,r*0.5,0,r*0.9);
+    ctx.fill();
+    ctx.shadowBlur=0;
+    // nudo
+    ctx.fillStyle=shade(b.color,-25);
+    ctx.beginPath(); ctx.moveTo(-r*0.12,r*0.9); ctx.lineTo(r*0.12,r*0.9); ctx.lineTo(0,r*1.05); ctx.closePath(); ctx.fill();
+    // brillo
+    ctx.fillStyle="rgba(255,255,255,.45)";
+    ctx.beginPath(); ctx.ellipse(-r*0.32,-r*0.35,r*0.16,r*0.28,-0.5,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
   function hexToRgba(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
   function shade(hex,amt){
     let n=parseInt(hex.slice(1),16), r=(n>>16&255)+amt, g=(n>>8&255)+amt, b=(n&255)+amt;
@@ -637,7 +824,11 @@
 
     // alerta de "mucho ruido"
     const over = lvl*100 >= settings.threshold;
-    if(over){ alertHold = performance.now(); if(!alertActive){ alertActive=true; alertBanner.classList.add("show"); playAlertSound(); } }
+    if(over){
+      alertHold = performance.now();
+      if(!alertActive){ alertActive=true; alertBanner.classList.add("show"); }
+      playAlertSound(); // sigue avisando mientras el ruido continúe (con su propio intervalo)
+    }
     else if(alertActive && performance.now()-alertHold > 700){ alertActive=false; alertBanner.classList.remove("show"); }
   }
   function mix(a,b,f){ return a.map((v,i)=>Math.round(v+(b[i]-v)*f)).join(","); }
