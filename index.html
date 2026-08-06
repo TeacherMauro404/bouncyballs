@@ -287,13 +287,13 @@
     </div>
 
     <div class="field">
-      <div class="flabel"><span data-i18n="sensitivity">Sensibilidad</span><span class="val" id="sensVal">6</span></div>
-      <input type="range" id="sens" min="1" max="10" step="1" value="6">
+      <div class="flabel"><span data-i18n="sensitivity">Sensibilidad</span><span class="val" id="sensVal">7</span></div>
+      <input type="range" id="sens" min="1" max="10" step="1" value="7">
     </div>
 
     <div class="field">
-      <div class="flabel"><span data-i18n="threshold">Umbral de alerta</span><span class="val" id="thrVal">45%</span></div>
-      <input type="range" id="thr" min="15" max="95" step="5" value="45">
+      <div class="flabel"><span data-i18n="threshold">Umbral de alerta</span><span class="val" id="thrVal">25%</span></div>
+      <input type="range" id="thr" min="10" max="95" step="5" value="25">
       <div class="hint" data-i18n="thresholdHint">Nivel de ruido que dispara el aviso “¡Mucho ruido!”.</div>
     </div>
 
@@ -423,7 +423,7 @@
   const EMOJIS = ["😀","😎","🤩","😄","🥳","😺","🐶","🦊","🐸","🐥","🌟","🚀","🍩","🌈","⚽","🎈"];
   const SPORTS = ["soccer","basket","tennis","volley","beach"];
   const settings = {
-    total:14, sensitivity:6, threshold:45,
+    total:14, sensitivity:7, threshold:25,
     theme:"plastic", alert:"shush", micOn:false
   };
   const balls = [];
@@ -453,7 +453,7 @@
   setTotal(settings.total);
 
   // ---------- Audio / Micrófono ----------
-  let audioCtx=null, analyser=null, micStream=null, freqData=null;
+  let audioCtx=null, analyser=null, micStream=null, freqData=null, timeData=null, byteTime=null;
   let rawLevel=0;      // 0..1 nivel instantáneo
   let smooth=0;        // nivel suavizado para el fondo/medidor
   let audioReady=false;
@@ -462,11 +462,13 @@
     try{
       if(!audioCtx){ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
       if(audioCtx.state==="suspended") await audioCtx.resume();
-      micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+      micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true}});
       const src = audioCtx.createMediaStreamSource(micStream);
       analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512; analyser.smoothingTimeConstant = 0.6;
+      analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0.3;
       freqData = new Uint8Array(analyser.frequencyBinCount);
+      timeData = new Float32Array(analyser.fftSize);
+      byteTime = new Uint8Array(analyser.fftSize);
       src.connect(analyser);
       audioReady = true; settings.micOn = true;
       syncMicUI(); toast(t("micOn"));
@@ -483,20 +485,18 @@
   }
   function readLevel(){
     if(!audioReady||!analyser){ rawLevel *= 0.9; return; }
-    analyser.getByteFrequencyData(freqData);
-    // Enfocar en la banda de la voz humana (~150 Hz a 5 kHz), donde vive el ruido de sala
-    const nyquist = audioCtx.sampleRate/2;
-    const binHz = nyquist/freqData.length;
-    const lo = Math.max(1, Math.floor(150/binHz));
-    const hi = Math.min(freqData.length, Math.floor(5000/binHz));
-    let sum=0, count=0, peak=0;
-    for(let i=lo;i<hi;i++){ const v=freqData[i]/255; sum+=v*v; if(v>peak) peak=v; count++; }
-    const rms = Math.sqrt(sum/Math.max(1,count));
-    // mezcla RMS + pico para que la conversación normal registre bien
-    let lvl = rms*0.65 + peak*0.35;
-    // compuerta de ruido: silencio real no debe hacer saltar las pelotas
-    if(lvl < 0.05) lvl = 0;
-    rawLevel = Math.min(1, lvl);
+    let sum=0, peak=0, n;
+    if(analyser.getFloatTimeDomainData){
+      analyser.getFloatTimeDomainData(timeData); n=timeData.length;
+      for(let i=0;i<n;i++){ const v=Math.abs(timeData[i]); sum+=v*v; if(v>peak) peak=v; }
+    } else {
+      analyser.getByteTimeDomainData(byteTime); n=byteTime.length;
+      for(let i=0;i<n;i++){ const v=Math.abs(byteTime[i]-128)/128; sum+=v*v; if(v>peak) peak=v; }
+    }
+    const rms = Math.sqrt(sum/n);      // amplitud media (0..~0.3 al hablar)
+    let lvl = rms*0.8 + peak*0.2;       // mezcla con el pico para reaccionar rápido
+    if(lvl < 0.006) lvl = 0;            // compuerta: silencio real = 0
+    rawLevel = lvl;
   }
 
   // ---------- Alertas de sonido ----------
@@ -574,14 +574,15 @@
   let kickAccumulator=0;
 
   function physics(){
-    // nivel efectivo con sensibilidad (más responsiva: la conversación normal llena el medidor)
-    const gain = settings.sensitivity*0.3 + 0.3;   // sens 1→0.6, 6→2.1, 10→3.3
+    // amplitud escalada con alta ganancia: hablar normal ya llena buena parte de la barra
+    const gain = settings.sensitivity * 2.7;          // sens 7 → ~19, sens 10 → 27
     const level = Math.min(1, rawLevel*gain);
-    smooth += (level - smooth) * 0.15;
+    // ataque rápido para que la barra suba al hablar, caída suave al callar
+    smooth += (level - smooth) * (level>smooth ? 0.5 : 0.08);
 
     // impulso hacia arriba proporcional al ruido, sobre pelotas cercanas al piso
     kickAccumulator += level;
-    const kickThreshold = 0.16;
+    const kickThreshold = 0.22;
     for(const b of balls){
       b.vy += GRAVITY;
       const grounded = b.y > H - b.r - 4 && Math.abs(b.vy) < 6;
