@@ -32,7 +32,8 @@
   button{font-family:inherit}
   button:focus-visible,.card:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
   #stage{position:fixed;inset:0;display:block;touch-action:none}
-  #bg{position:fixed;inset:0;z-index:-2;background:radial-gradient(120% 120% at 50% 0%,#e9f6f1,#d6ede4)}
+  #scene{position:fixed;inset:0;z-index:-2;pointer-events:none}
+  #bg{position:fixed;inset:0;z-index:-3;background:radial-gradient(120% 120% at 50% 0%,#e9f6f1,#d6ede4)}
   #vignette{position:fixed;inset:0;z-index:-1;pointer-events:none;box-shadow:inset 0 0 220px rgba(240,102,63,0);transition:box-shadow .25s ease}
 
   /* ---- Barra superior ---- */
@@ -108,7 +109,7 @@
   .closebtn{width:36px;height:36px;border-radius:50%;border:none;background:var(--soft);cursor:pointer;display:grid;place-items:center;color:var(--ink)}
   .closebtn svg{width:16px;height:16px}
   .tabs{display:flex;gap:4px;background:var(--soft);border-radius:14px;padding:4px;margin:14px 18px 0}
-  .tabs button{flex:1;border:none;background:transparent;cursor:pointer;font-weight:800;font-size:13px;padding:9px 4px;border-radius:10px;color:var(--ink-soft);transition:all .15s}
+  .tabs button{flex:1;border:none;background:transparent;cursor:pointer;font-weight:800;font-size:12.5px;padding:9px 2px;border-radius:10px;color:var(--ink-soft);transition:all .15s}
   .tabs button.on{background:#fff;color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.1)}
   .panel-body{padding:4px 22px 28px;overflow-y:auto;flex:1}
   .tab{display:none}.tab.on{display:block}
@@ -148,6 +149,26 @@
   .card .play svg{width:14px;height:14px}
   .tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:#e3f4ef;color:var(--accent-ink);margin-left:6px;vertical-align:2px}
 
+  .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .tiles.four{grid-template-columns:repeat(4,1fr)}
+  .tile{border:2px solid var(--line);border-radius:14px;padding:6px 4px 7px;background:#fff;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:5px;
+    font-weight:800;font-size:11.5px;color:var(--ink-soft);transition:border-color .15s,background .15s,transform .12s;text-align:center;line-height:1.15}
+  .tile:hover{border-color:#cfe0da;transform:translateY(-1px)}
+  .tile.on{border-color:var(--accent);background:var(--accent-bg);color:var(--accent-ink)}
+  .tile .sw{width:100%;height:50px;border-radius:9px;display:grid;place-items:end start;padding:4px 6px;font-size:18px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
+  .tile .em{font-size:26px;line-height:1.1}
+  .pals{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .pal{border:2px solid var(--line);border-radius:12px;padding:6px;background:#fff;cursor:pointer;font-weight:800;font-size:11px;color:var(--ink-soft)}
+  .pal.on{border-color:var(--accent);background:var(--accent-bg);color:var(--accent-ink)}
+  .pal .bar{display:flex;height:16px;border-radius:6px;overflow:hidden;margin-bottom:4px}
+  .pal .bar i{flex:1}
+  input.txt{width:100%;border:2px solid var(--line);border-radius:12px;padding:10px 12px;font:700 14px "Nunito",sans-serif;color:var(--ink);outline:none;user-select:text}
+  input.txt:focus{border-color:var(--accent)}
+  input[type=color]{width:52px;height:34px;border:2px solid var(--line);border-radius:10px;padding:2px;background:#fff;cursor:pointer}
+  .clock{position:fixed;top:76px;right:clamp(12px,3vw,26px);z-index:19;padding:6px 16px;border-radius:999px;font-family:"Baloo 2",cursive;font-weight:800;
+    font-size:26px;line-height:1.2;font-variant-numeric:tabular-nums;display:none;pointer-events:none}
+  body.show-clock .clock{display:block}
+  body.no-meter .meter{visibility:hidden}
   .row{display:flex;gap:10px;margin-top:22px}
   .row .btn{flex:1;cursor:pointer;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:14px;transition:transform .12s,filter .2s}
   .btn.primary{background:var(--accent);color:#fff}
@@ -214,6 +235,7 @@
 </head>
 <body>
 <div id="bg"></div>
+<canvas id="scene"></canvas>
 <div id="vignette"></div>
 <canvas id="stage"></canvas>
 
@@ -238,6 +260,8 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
 </div>
+
+<div class="clock glass" id="clock">--:--</div>
 
 <!-- Alerta central -->
 <div class="alert-banner" id="alertBanner">
@@ -272,7 +296,8 @@
     <button data-tab="room" class="on" data-i18n="tabRoom">Aula</button>
     <button data-tab="signals" data-i18n="tabSignals">Señales</button>
     <button data-tab="calm" data-i18n="tabCalm">Calma</button>
-    <button data-tab="look" data-i18n="tabLook">Vista</button>
+    <button data-tab="balls" data-i18n="tabBalls">Pelotas</button>
+    <button data-tab="scene" data-i18n="tabScene">Fondo</button>
   </div>
   <div class="panel-body">
 
@@ -293,10 +318,6 @@
         <div class="flabel"><span data-i18n="threshold">Umbral de alerta</span><span class="val" id="thrVal">25%</span></div>
         <input type="range" id="thr" min="10" max="95" step="5" value="25">
         <div class="hint" data-i18n="thresholdHint">Nivel de ruido que dispara el aviso “¡Mucho ruido!”.</div>
-      </div>
-      <div class="field">
-        <div class="flabel"><span data-i18n="total">Cantidad de pelotas</span><span class="val" id="totalVal">14</span></div>
-        <input type="range" id="total" min="1" max="60" step="1" value="14">
       </div>
       <div class="note" data-i18n-html="shortcuts">Atajos: <kbd>S</kbd> señal de silencio · <kbd>C</kbd> modo calma · <kbd>M</kbd> micrófono · <kbd>F</kbd> pantalla completa.</div>
     </section>
@@ -355,26 +376,102 @@
       <div class="note" data-i18n-html="calmNote"></div>
     </section>
 
-    <!-- VISTA -->
-    <section class="tab" data-tab="look">
+    <!-- PELOTAS -->
+    <section class="tab" data-tab="balls">
       <div class="field">
-        <div class="flabel"><span data-i18n="theme">Tema</span></div>
-        <div class="seg" id="themeSeg">
-          <button data-theme="plastic" class="on" data-i18n="thPlastic">Plástico</button>
-          <button data-theme="sports" data-i18n="thSports">Deportes</button>
-          <button data-theme="faces" data-i18n="thFaces">Caritas</button>
-          <button data-theme="balloons" data-i18n="thBalloons">Globos</button>
-          <button data-theme="emoji" data-i18n="thEmoji">Emoji</button>
-          <button data-theme="numbers" data-i18n="thNumbers">Números</button>
-          <button data-theme="bubbles" data-i18n="thBubbles">Burbujas</button>
-          <button data-theme="eyes" data-i18n="thEyes">Ojos</button>
+        <div class="flabel"><span data-i18n="theme">Tipo de pelota</span></div>
+        <div class="tiles four" id="themeTiles"></div>
+      </div>
+      <div class="field">
+        <div class="flabel"><span data-i18n="palette">Colores</span></div>
+        <div class="pals" id="palTiles"></div>
+        <div class="hint" data-i18n="paletteHint">Se aplica a plástico, globos, números, letras, estrellas, corazones, planetas, burbujas y ojos.</div>
+      </div>
+      <div class="field">
+        <div class="flabel"><span data-i18n="total">Cantidad de pelotas</span><span class="val" id="totalVal">14</span></div>
+        <input type="range" id="total" min="1" max="60" step="1" value="14">
+      </div>
+      <div class="field">
+        <div class="flabel"><span data-i18n="size">Tamaño</span><span class="val" id="sizeVal">100%</span></div>
+        <input type="range" id="size" min="50" max="200" step="10" value="100">
+      </div>
+      <div class="field">
+        <div class="flabel"><span data-i18n="gravity">Gravedad</span></div>
+        <div class="seg" id="gravSeg">
+          <button data-v="normal" data-i18n="gNormal">🌍 Tierra</button>
+          <button data-v="moon" data-i18n="gMoon">🌙 Luna</button>
+          <button data-v="space" data-i18n="gSpace">🚀 Flotar</button>
+          <button data-v="heavy" data-i18n="gHeavy">🪨 Pesada</button>
+        </div>
+      </div>
+      <div class="field">
+        <div class="flabel"><span data-i18n="bounce">Rebote</span></div>
+        <div class="seg" id="bounceSeg">
+          <button data-v="low" data-i18n="bLow">Suave</button>
+          <button data-v="normal" data-i18n="bNormal">Normal</button>
+          <button data-v="high" data-i18n="bHigh">Saltarín</button>
+        </div>
+      </div>
+      <div class="field">
+        <div class="flabel"><span data-i18n="speed">Velocidad</span></div>
+        <div class="seg" id="speedSeg">
+          <button data-v="0.6" data-i18n="spSlow">Lenta</button>
+          <button data-v="1" data-i18n="spNormal">Normal</button>
+          <button data-v="1.4" data-i18n="spFast">Rápida</button>
+        </div>
+      </div>
+      <div class="field">
+        <div class="switch">
+          <span class="flabel"><span data-i18n="trails">Estelas de movimiento</span></span>
+          <button class="toggle" id="trailsToggle"></button>
         </div>
       </div>
       <div class="row">
-        <button class="btn ghost" id="resetBtn" data-i18n="reset">Reiniciar</button>
+        <button class="btn ghost" id="resetBtn" data-i18n="reset">Reiniciar pelotas</button>
+      </div>
+      <div class="hint" style="margin-top:12px" data-i18n="tapHint">Toca la pantalla para agregar pelotas.</div>
+    </section>
+
+    <!-- FONDO -->
+    <section class="tab" data-tab="scene">
+      <div class="field">
+        <div class="flabel"><span data-i18n="scene">Escenario</span></div>
+        <div class="tiles" id="sceneTiles"></div>
+        <div class="hint" data-i18n="sceneHint">Los escenarios reaccionan al ruido: el viento mueve los árboles, crecen las olas y titilan las estrellas.</div>
+      </div>
+      <div class="field" id="solidField">
+        <div class="switch">
+          <span class="flabel"><span data-i18n="solidColor">Color del fondo liso</span></span>
+          <input type="color" id="solidColor" value="#dfeee8">
+        </div>
+      </div>
+      <div class="field">
+        <div class="switch">
+          <span class="flabel"><span data-i18n="sceneMotion">Animar el fondo</span></span>
+          <button class="toggle" id="motionToggle"></button>
+        </div>
+      </div>
+      <div class="field">
+        <div class="flabel"><span data-i18n="msg">Mensaje de alerta</span></div>
+        <input type="text" class="txt" id="msgTitle" maxlength="40">
+        <input type="text" class="txt" id="msgSub" maxlength="60" style="margin-top:8px">
+        <div class="hint" data-i18n="msgHint">Déjalo vacío para usar el mensaje predeterminado. Ej.: “¡Silencio, 2°B!”.</div>
+      </div>
+      <div class="field">
+        <div class="switch"><span class="flabel"><span data-i18n="showBanner">Mostrar mensaje grande</span></span><button class="toggle" id="bannerToggle"></button></div>
+      </div>
+      <div class="field">
+        <div class="switch"><span class="flabel"><span data-i18n="redGlow">Brillo rojo con ruido</span></span><button class="toggle" id="glowToggle"></button></div>
+      </div>
+      <div class="field">
+        <div class="switch"><span class="flabel"><span data-i18n="showMeter">Mostrar medidor</span></span><button class="toggle" id="meterToggle"></button></div>
+      </div>
+      <div class="field">
+        <div class="switch"><span class="flabel"><span data-i18n="showClock">Mostrar reloj</span></span><button class="toggle" id="clockToggle"></button></div>
+      </div>
+      <div class="row">
         <button class="btn primary" id="fsBtn" data-i18n="fullscreen">Pantalla completa</button>
       </div>
-      <div class="hint" style="margin-top:18px" data-i18n="tapHint">Toca la pantalla para agregar pelotas.</div>
     </section>
   </div>
 </aside>
@@ -402,11 +499,26 @@
   const I18N = {
     es:{
       title:"Pelotas Saltarinas", noise:"Ruido", settings:"Ajustes",
-      tabRoom:"Aula", tabSignals:"Señales", tabCalm:"Calma", tabLook:"Vista",
+      tabRoom:"Aula", tabSignals:"Señales", tabCalm:"Calma", tabBalls:"Pelotas", tabScene:"Fondo",
+      th_plastic:"Plástico", th_sports:"Deportes", th_faces:"Caritas", th_balloons:"Globos", th_emoji:"Emoji", th_animals:"Animales",
+      th_sea:"Mar", th_fruits:"Frutas", th_flowers:"Flores", th_food:"Comida", th_nature:"Naturaleza", th_stars:"Estrellas",
+      th_hearts:"Corazones", th_planets:"Planetas", th_numbers:"Números", th_letters:"Letras", th_bubbles:"Burbujas", th_eyes:"Ojos",
+      pal_rainbow:"Arcoíris", pal_pastel:"Pastel", pal_neon:"Neón", pal_ocean:"Océano", pal_forest:"Bosque", pal_sunset:"Atardecer", pal_candy:"Dulce", pal_mono:"Azules",
+      sc_classic:"Clásico", sc_forest:"Bosque", sc_park:"Parque", sc_autumn:"Otoño", sc_beach:"Playa", sc_underwater:"Fondo marino", sc_snow:"Nieve",
+      sc_night:"Noche", sc_space:"Espacio", sc_city:"Ciudad", sc_chalk:"Pizarra", sc_notebook:"Cuaderno", sc_solid:"Color liso",
+      palette:"Colores", paletteHint:"Se aplica a plástico, globos, números, letras, estrellas, corazones, planetas, burbujas y ojos.",
+      size:"Tamaño", gravity:"Gravedad", gNormal:"🌍 Tierra", gMoon:"🌙 Luna", gSpace:"🚀 Flotar", gHeavy:"🪨 Pesada",
+      bounce:"Rebote", bLow:"Suave", bNormal:"Normal", bHigh:"Saltarín", speed:"Velocidad", spSlow:"Lenta", spNormal:"Normal", spFast:"Rápida",
+      trails:"Estelas de movimiento", scene:"Escenario",
+      sceneHint:"Los escenarios reaccionan al ruido: el viento mueve los árboles, crecen las olas y titilan las estrellas.",
+      solidColor:"Color del fondo liso", sceneMotion:"Animar el fondo", msg:"Mensaje de alerta",
+      msgHint:"Déjalo vacío para usar el mensaje predeterminado. Ej.: “¡Silencio, 2°B!”.",
+      showBanner:"Mostrar mensaje grande", redGlow:"Brillo rojo con ruido", showMeter:"Mostrar medidor", showClock:"Mostrar reloj",
+      al_shush2:"Shh, shh, shhh", al_shush2_d:"Tres siseos seguidos, más insistente.",
       mic:"Micrófono", micHint:"Las pelotas rebotan con el sonido de la sala.",
       sensitivity:"Sensibilidad", threshold:"Umbral de alerta",
       thresholdHint:"Nivel de ruido que dispara el aviso “¡Mucho ruido!”.",
-      total:"Cantidad de pelotas", theme:"Tema",
+      total:"Cantidad de pelotas", theme:"Tipo de pelota",
       thPlastic:"Plástico", thEmoji:"Emoji", thNumbers:"Números", thBubbles:"Burbujas", thEyes:"Ojos",
       thSports:"Deportes", thFaces:"Caritas", thBalloons:"Globos",
       stSilence:"Silencio", stCalm:"Tranquilo", stMid:"Moderado", stLoud:"¡Alto!",
@@ -422,7 +534,7 @@
       al_triangle:"Triángulo", al_triangle_d:"Tono agudo y limpio que se distingue sobre las voces.",
       al_marimba:"Marimba", al_marimba_d:"Arpegio ascendente de “atención, por favor”.",
       al_claps:"Palmas rítmicas", al_claps_d:"Patrón de llamada y respuesta: el curso lo repite y queda en silencio.",
-      al_shush:"Shhh", al_shush_d:"Siseo universal de “silencio”.",
+      al_shush:"Shhh", al_shush_d:"Siseo humano largo y suave, como el de un profesor.",
       al_beep:"Pitido", al_beep_d:"Tono breve y neutro.",
       al_voice:"Voz", al_voice_d:"Una voz dice “Silencio, por favor”.",
       voicePhrase:"Silencio, por favor",
@@ -438,7 +550,7 @@
       am_ocean:"Olas del mar", am_ocean_d:"Oleaje lento, al ritmo de una respiración tranquila.",
       am_brown:"Ruido marrón", am_brown_d:"Sonido grave y parejo para concentrarse.",
       calmNote:"<b>Base:</b> la música calmante y sin letra se ha asociado a mejor desempeño en aritmética y memoria en escolares (Hallam et al., 2002). El ruido de fondo (lluvia, ruido marrón) puede ayudar a estudiantes con dificultades de atención, pero perjudicar a otros (Söderlund et al., 2010): úsalo a volumen bajo. Si el micrófono capta la música, baja el volumen o la sensibilidad.",
-      reset:"Reiniciar", fullscreen:"Pantalla completa", tapHint:"Toca la pantalla para agregar pelotas.",
+      reset:"Reiniciar pelotas", fullscreen:"Pantalla completa", tapHint:"Toca la pantalla para agregar pelotas.",
       shortcuts:"Atajos: <kbd>S</kbd> señal de silencio · <kbd>C</kbd> modo calma · <kbd>M</kbd> micrófono · <kbd>F</kbd> pantalla completa.",
       tooLoud:"¡Mucho ruido!", shush:"Shhh… bajemos la voz",
       startTitle:"Pelotas Saltarinas",
@@ -452,11 +564,26 @@
     },
     en:{
       title:"Bouncy Balls", noise:"Noise", settings:"Settings",
-      tabRoom:"Room", tabSignals:"Signals", tabCalm:"Calm", tabLook:"Look",
+      tabRoom:"Room", tabSignals:"Signals", tabCalm:"Calm", tabBalls:"Balls", tabScene:"Scene",
+      th_plastic:"Plastic", th_sports:"Sports", th_faces:"Faces", th_balloons:"Balloons", th_emoji:"Emoji", th_animals:"Animals",
+      th_sea:"Sea", th_fruits:"Fruit", th_flowers:"Flowers", th_food:"Food", th_nature:"Nature", th_stars:"Stars",
+      th_hearts:"Hearts", th_planets:"Planets", th_numbers:"Numbers", th_letters:"Letters", th_bubbles:"Bubbles", th_eyes:"Eyeballs",
+      pal_rainbow:"Rainbow", pal_pastel:"Pastel", pal_neon:"Neon", pal_ocean:"Ocean", pal_forest:"Forest", pal_sunset:"Sunset", pal_candy:"Candy", pal_mono:"Blues",
+      sc_classic:"Classic", sc_forest:"Forest", sc_park:"Park", sc_autumn:"Autumn", sc_beach:"Beach", sc_underwater:"Under the sea", sc_snow:"Snow",
+      sc_night:"Night", sc_space:"Space", sc_city:"City", sc_chalk:"Chalkboard", sc_notebook:"Notebook", sc_solid:"Plain colour",
+      palette:"Colours", paletteHint:"Applies to plastic, balloons, numbers, letters, stars, hearts, planets, bubbles and eyeballs.",
+      size:"Size", gravity:"Gravity", gNormal:"🌍 Earth", gMoon:"🌙 Moon", gSpace:"🚀 Float", gHeavy:"🪨 Heavy",
+      bounce:"Bounce", bLow:"Soft", bNormal:"Normal", bHigh:"Bouncy", speed:"Speed", spSlow:"Slow", spNormal:"Normal", spFast:"Fast",
+      trails:"Motion trails", scene:"Scene",
+      sceneHint:"Scenes react to noise: the wind shakes the trees, the waves grow and the stars twinkle.",
+      solidColor:"Plain background colour", sceneMotion:"Animate the background", msg:"Alert message",
+      msgHint:"Leave empty to use the default message. E.g. “Quiet, Year 9!”.",
+      showBanner:"Show big message", redGlow:"Red glow when noisy", showMeter:"Show meter", showClock:"Show clock",
+      al_shush2:"Shh, shh, shhh", al_shush2_d:"Three shushes in a row, more insistent.",
       mic:"Microphone", micHint:"The balls bounce with the sound of the room.",
       sensitivity:"Sensitivity", threshold:"Alert threshold",
       thresholdHint:"Noise level that triggers the “Too loud!” alert.",
-      total:"Number of balls", theme:"Theme",
+      total:"Number of balls", theme:"Ball type",
       thPlastic:"Plastic", thEmoji:"Emoji", thNumbers:"Numbers", thBubbles:"Bubbles", thEyes:"Eyeballs",
       thSports:"Sports", thFaces:"Faces", thBalloons:"Balloons",
       stSilence:"Silent", stCalm:"Calm", stMid:"Getting loud", stLoud:"Too loud!",
@@ -472,7 +599,7 @@
       al_triangle:"Triangle", al_triangle_d:"A clean, high tone that cuts through voices.",
       al_marimba:"Marimba", al_marimba_d:"A rising “attention, please” arpeggio.",
       al_claps:"Rhythmic claps", al_claps_d:"Call-and-response pattern: the class echoes it and falls silent.",
-      al_shush:"Shush", al_shush_d:"The universal “quiet” sound.",
+      al_shush:"Shush", al_shush_d:"A long, soft human shush, like a teacher’s.",
       al_beep:"Beep", al_beep_d:"A short, neutral tone.",
       al_voice:"Voice", al_voice_d:"A voice says “Quiet, please”.",
       voicePhrase:"Quiet, please",
@@ -488,7 +615,7 @@
       am_ocean:"Ocean waves", am_ocean_d:"Slow waves at the pace of calm breathing.",
       am_brown:"Brown noise", am_brown_d:"A deep, even sound for focus.",
       calmNote:"<b>Evidence:</b> calming music without lyrics has been linked to better arithmetic and memory performance in schoolchildren (Hallam et al., 2002). Background noise (rain, brown noise) may help inattentive students but hinder others (Söderlund et al., 2010): keep it low. If the microphone picks up the music, lower the volume or the sensitivity.",
-      reset:"Reset", fullscreen:"Fullscreen", tapHint:"Tap the screen to add balls.",
+      reset:"Reset balls", fullscreen:"Fullscreen", tapHint:"Tap the screen to add balls.",
       shortcuts:"Shortcuts: <kbd>S</kbd> quiet signal · <kbd>C</kbd> calm mode · <kbd>M</kbd> microphone · <kbd>F</kbd> fullscreen.",
       tooLoud:"Too loud!", shush:"Shhh… let's quiet down",
       startTitle:"Bouncy Balls",
@@ -508,43 +635,99 @@
   const SIGNALS = [
     {id:"chime", ic:"🔔", rec:true}, {id:"bowl", ic:"🧘", rec:true}, {id:"rainstick", ic:"🎋", rec:true},
     {id:"triangle", ic:"🔺"}, {id:"marimba", ic:"🎶"}, {id:"claps", ic:"👏"},
-    {id:"shush", ic:"🤫"}, {id:"voice", ic:"🗣️"}, {id:"beep", ic:"🔊"}, {id:"none", ic:"🔕"}
+    {id:"shush", ic:"🤫"}, {id:"shush2", ic:"🤐"}, {id:"voice", ic:"🗣️"}, {id:"beep", ic:"🔊"}, {id:"none", ic:"🔕"}
   ];
   const AMBIENCES = [
     {id:"piano", ic:"🎹"}, {id:"pad", ic:"🌌"}, {id:"rain", ic:"🌧️"}, {id:"ocean", ic:"🌊"}, {id:"brown", ic:"🍂"}
   ];
 
+  // ---------- Catálogos visuales ----------
+  const BALL_THEMES = [
+    {id:"plastic",ic:"🔴"},{id:"sports",ic:"⚽"},{id:"faces",ic:"😊"},{id:"balloons",ic:"🎈"},
+    {id:"emoji",ic:"🤩"},{id:"animals",ic:"🐶"},{id:"sea",ic:"🐠"},{id:"fruits",ic:"🍓"},
+    {id:"flowers",ic:"🌸"},{id:"food",ic:"🍕"},{id:"nature",ic:"🍁"},{id:"stars",ic:"⭐"},
+    {id:"hearts",ic:"💗"},{id:"planets",ic:"🪐"},{id:"numbers",ic:"🔢"},{id:"letters",ic:"🔤"},
+    {id:"bubbles",ic:"🫧"},{id:"eyes",ic:"👀"}
+  ];
+  const EMOJI_SETS = {
+    emoji:["😀","😎","🤩","😄","🥳","😺","🤓","😇","🥰","😜","🤠","😺","👻","🤖","👽","🦄"],
+    animals:["🐶","🐱","🦊","🐻","🐼","🐨","🐯","🦁","🐸","🐵","🐧","🐥","🐷","🐰","🐮","🦉"],
+    sea:["🐠","🐟","🐡","🐙","🦀","🐳","🐬","🦈","🐢","🦑","🐚","⚓","🦞","🪼","🦭","⛵"],
+    fruits:["🍎","🍊","🍋","🍉","🍇","🍓","🍒","🍑","🍍","🥝","🥥","🍐","🫐","🍌","🥭","🍈"],
+    flowers:["🌸","🌼","🌻","🌷","🌹","🌺","💐","🪷","🏵️","🌿","🍀","🌱","🪻","🌾","🍄","🌵"],
+    food:["🍕","🍔","🌮","🍩","🍪","🧁","🍦","🍿","🥨","🥐","🍰","🍭","🍫","🥞","🍙","🌭"],
+    nature:["🍁","🍂","🌳","🌲","🌍","☀️","🌙","⭐","🌈","❄️","⚡","🔥","💧","🌊","☁️","🌋"]
+  };
+  const LETTERS = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split("");
+  const PALETTES = {
+    rainbow:["#ff6b6b","#ffd93d","#6bcb77","#4d96ff","#ff9f45","#9b5de5","#f15bb5","#00bbf9","#f9c74f","#43aa8b"],
+    pastel:["#ffadad","#ffd6a5","#fdffb6","#caffbf","#9bf6ff","#a0c4ff","#bdb2ff","#ffc6ff"],
+    neon:["#ff00a8","#00f5d4","#fee440","#00bbf9","#9b5de5","#f15bb5","#39ff14","#ff6d00"],
+    ocean:["#03045e","#0077b6","#00b4d8","#48cae4","#90e0ef","#2a9d8f","#1d3557","#457b9d"],
+    forest:["#2d6a4f","#40916c","#52b788","#95d5b2","#6b9080","#a7c957","#386641","#bc6c25"],
+    sunset:["#f94144","#f3722c","#f8961e","#f9c74f","#ff7b9c","#c9184a","#ff9e00","#e85d04"],
+    candy:["#ff70a6","#ff9770","#ffd670","#e9ff70","#70d6ff","#cdb4db","#ffafcc","#a2d2ff"],
+    mono:["#264653","#2a6f97","#468faf","#61a5c2","#89c2d9","#a9d6e5","#01497c","#013a63"]
+  };
+  const SCENES = [
+    {id:"classic",ic:"🎨",bg:"linear-gradient(135deg,#e9f6f1,#cfe9e0)"},
+    {id:"forest",ic:"🌲",bg:"linear-gradient(#bfe3f5 0 55%,#2f6b45 55%)"},
+    {id:"park",ic:"🌳",bg:"linear-gradient(#a8dcff 0 55%,#7cc46a 55%)"},
+    {id:"autumn",ic:"🍂",bg:"linear-gradient(#ffd8a8 0 55%,#c96f2d 55%)"},
+    {id:"beach",ic:"🏖️",bg:"linear-gradient(#9fd8ff 0 45%,#2a9fd6 45% 70%,#f2d59b 70%)"},
+    {id:"underwater",ic:"🐠",bg:"linear-gradient(#4cc9f0,#1b4f8a)"},
+    {id:"snow",ic:"❄️",bg:"linear-gradient(#dfe9f5 0 60%,#ffffff 60%)"},
+    {id:"night",ic:"🌙",bg:"linear-gradient(#0d1b3d 0 65%,#14213d 65%)"},
+    {id:"space",ic:"🪐",bg:"radial-gradient(circle at 70% 30%,#3a2d6b,#0b0b1e)"},
+    {id:"city",ic:"🏙️",bg:"linear-gradient(#ff9a76 0 50%,#5b3a6e 50%)"},
+    {id:"chalk",ic:"🧑‍🏫",bg:"linear-gradient(#2f5d4a,#264d3d)"},
+    {id:"notebook",ic:"📓",bg:"repeating-linear-gradient(#fdfdf8 0 9px,#b9d4ec 9px 10px)"},
+    {id:"solid",ic:"🟦",bg:"conic-gradient(#ff6b6b,#ffd93d,#6bcb77,#4d96ff,#9b5de5,#ff6b6b)"}
+  ];
+  const DARK_SCENES = new Set(["night","space","chalk","underwater","city"]);
+
   // ---------- Canvas / DPR ----------
   const canvas = document.getElementById("stage");
   const ctx = canvas.getContext("2d");
-  let W=0, H=0, DPR=1;
+  const sceneCanvas = document.getElementById("scene");
+  const sctx = sceneCanvas.getContext("2d");
+  let W=0, H=0, DPR=1, sceneReady=false;
   function resize(){
     DPR = Math.min(window.devicePixelRatio||1, 2);
     W = window.innerWidth; H = window.innerHeight;
-    canvas.width = Math.floor(W*DPR); canvas.height = Math.floor(H*DPR);
-    canvas.style.width = W+"px"; canvas.style.height = H+"px";
-    ctx.setTransform(DPR,0,0,DPR,0,0);
+    for(const [c,x] of [[canvas,ctx],[sceneCanvas,sctx]]){
+      c.width = Math.floor(W*DPR); c.height = Math.floor(H*DPR);
+      c.style.width = W+"px"; c.style.height = H+"px";
+      x.setTransform(DPR,0,0,DPR,0,0);
+    }
+    if(sceneReady) buildScene();
   }
   window.addEventListener("resize", resize);
   resize();
 
   // ---------- Estado ----------
-  const PALETTE = ["#ff6b6b","#ffd93d","#6bcb77","#4d96ff","#ff9f45","#9b5de5","#f15bb5","#00bbf9","#f9c74f","#43aa8b"];
-  const EMOJIS = ["😀","😎","🤩","😄","🥳","😺","🐶","🦊","🐸","🐥","🌟","🚀","🍩","🌈","⚽","🎈"];
   const SPORTS = ["soccer","basket","tennis","volley","beach"];
   const settings = {
     total:14, sensitivity:7, threshold:25,
-    theme:"plastic", alert:"chime", alertRepeat:true, sfxVol:80,
+    theme:"plastic", palette:"rainbow", size:100, gravity:"normal", bounce:"normal", speed:1, trails:false,
+    scene:"classic", solidColor:"#dfeee8", sceneMotion:true,
+    showMeter:true, showBanner:true, redGlow:true, showClock:false, msgTitle:"", msgSub:"",
+    alert:"chime", alertRepeat:true, sfxVol:80,
     calmSound:"piano", calmVol:45, calmDuck:true, calmMinutes:0,
     lang:"es", micOn:false
   };
-  const SAVE_KEYS = ["total","sensitivity","threshold","theme","alert","alertRepeat","sfxVol","calmSound","calmVol","calmDuck","calmMinutes","lang"];
+  const SAVE_KEYS = ["total","sensitivity","threshold","theme","palette","size","gravity","bounce","speed","trails",
+    "scene","solidColor","sceneMotion","showMeter","showBanner","redGlow","showClock","msgTitle","msgSub",
+    "alert","alertRepeat","sfxVol","calmSound","calmVol","calmDuck","calmMinutes","lang"];
   try{
     const saved = JSON.parse(localStorage.getItem("bouncyballs-settings")||"{}");
     for(const k of SAVE_KEYS) if(saved[k]!==undefined && typeof saved[k]===typeof settings[k]) settings[k]=saved[k];
   }catch(e){}
   if(!SIGNALS.some(s=>s.id===settings.alert)) settings.alert="chime";
   if(!AMBIENCES.some(a=>a.id===settings.calmSound)) settings.calmSound="piano";
+  if(!BALL_THEMES.some(a=>a.id===settings.theme)) settings.theme="plastic";
+  if(!SCENES.some(a=>a.id===settings.scene)) settings.scene="classic";
+  if(!PALETTES[settings.palette]) settings.palette="rainbow";
   lang = settings.lang==="en" ? "en" : "es";
   function save(){
     try{ const o={}; for(const k of SAVE_KEYS) o[k]=settings[k]; localStorage.setItem("bouncyballs-settings",JSON.stringify(o)); }catch(e){}
@@ -553,14 +736,15 @@
   const balls = [];
   let idCounter = 0;
   function makeBall(x,y){
-    const r = 18 + Math.random()*22;
+    const base = 18 + Math.random()*22, r = base*settings.size/100;
     idCounter++;
+    const pal = PALETTES[settings.palette];
     return {
-      x: x!==undefined ? x : r + Math.random()*(W-2*r),
+      x: x!==undefined ? x : r + Math.random()*Math.max(1,W-2*r),
       y: y!==undefined ? y : r + Math.random()*(H*0.4),
       vx:(Math.random()-0.5)*4, vy:(Math.random()-0.5)*4,
-      r, color: PALETTE[idCounter%PALETTE.length],
-      emoji: EMOJIS[Math.floor(Math.random()*EMOJIS.length)],
+      base, r, ci: idCounter, color: pal[idCounter%pal.length],
+      ei: Math.floor(Math.random()*1000),
       num: (idCounter%50)+1, sport: SPORTS[idCounter%SPORTS.length], face: idCounter%4,
       spin:(Math.random()-0.5)*0.1, angle:Math.random()*Math.PI*2
     };
@@ -570,7 +754,10 @@
     while(balls.length < n) balls.push(makeBall());
     while(balls.length > n) balls.pop();
   }
+  function applyPalette(){ const pal=PALETTES[settings.palette]; for(const b of balls) b.color=pal[b.ci%pal.length]; }
+  function applySize(){ for(const b of balls) b.r=b.base*settings.size/100; }
   setTotal(settings.total);
+  sceneReady=true;
 
   // =====================================================================
   //  MOTOR DE AUDIO (todo sintetizado con Web Audio: no requiere archivos)
@@ -659,6 +846,34 @@
     s.connect(bp).connect(g).connect(dest); s.start(t0, Math.random()*4); s.stop(t0+dur+0.02);
   }
 
+  // "Shhh" humano: fricativa postalveolar [ʃ]. Su energía se concentra entre ~2 y 6 kHz,
+  // con un pico de resonancia cerca de 2,5–3 kHz (labios redondeados) y casi nada bajo 1,5 kHz.
+  // Se envía seco (sin reverberación) para que suene como una persona cercana y no como viento.
+  function shushVoice(ac, dest, t0, dur, amt){
+    const src=ac.createBufferSource(); src.buffer=noiseBuffer("white");
+    const hp1=ac.createBiquadFilter(); hp1.type="highpass"; hp1.frequency.value=1800; hp1.Q.value=0.9;
+    const hp2=ac.createBiquadFilter(); hp2.type="highpass"; hp2.frequency.value=1500; hp2.Q.value=0.6;
+    const f1=ac.createBiquadFilter(); f1.type="peaking"; f1.Q.value=1.7; f1.gain.value=15;
+    f1.frequency.setValueAtTime(2900,t0); f1.frequency.linearRampToValueAtTime(2550,t0+dur);
+    const f2=ac.createBiquadFilter(); f2.type="peaking"; f2.frequency.value=4600; f2.Q.value=2.2; f2.gain.value=4;
+    const lp1=ac.createBiquadFilter(); lp1.type="lowpass"; lp1.frequency.value=6000; lp1.Q.value=0.7;
+    const lp2=ac.createBiquadFilter(); lp2.type="lowpass"; lp2.frequency.value=7600; lp2.Q.value=0.5;
+    const g=ac.createGain(), pk=0.14*amt, end=t0+dur;
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.linearRampToValueAtTime(pk*0.25,t0+0.035);
+    g.gain.exponentialRampToValueAtTime(pk,t0+Math.min(0.16,dur*0.4));
+    g.gain.linearRampToValueAtTime(pk*1.06,t0+dur*0.5);
+    g.gain.linearRampToValueAtTime(pk*0.8,Math.max(t0+dur*0.55,end-0.22));
+    g.gain.exponentialRampToValueAtTime(0.0001,end);
+    // pequeñas irregularidades del soplo
+    const tr=ac.createGain(); tr.gain.value=1;
+    const l1=ac.createOscillator(); l1.frequency.value=5.3; const d1=ac.createGain(); d1.gain.value=0.07;
+    const l2=ac.createOscillator(); l2.frequency.value=2.1; const d2=ac.createGain(); d2.gain.value=0.05;
+    l1.connect(d1).connect(tr.gain); l2.connect(d2).connect(tr.gain);
+    src.connect(hp1).connect(hp2).connect(f1).connect(f2).connect(lp1).connect(lp2).connect(g).connect(tr).connect(dest);
+    src.start(t0,Math.random()*4); src.stop(end+0.05); l1.start(t0); l2.start(t0); l1.stop(end+0.05); l2.stop(end+0.05);
+  }
+
   // ---------- Señales de silencio ----------
   // Cada señal devuelve su duración aprox. (s), que define cada cuánto puede repetirse.
   const SIGNAL_FN = {
@@ -698,17 +913,10 @@
       });
       return 3.4;
     },
-    shush(t0){ // "Shhh" sintetizado: ruido con la forma espectral de una "sh"
-      const ac=audioCtx, dur=0.9, s=ac.createBufferSource(); s.buffer=noiseBuffer("white");
-      const hp=ac.createBiquadFilter(); hp.type="highpass"; hp.frequency.value=1200; hp.Q.value=0.7;
-      const pk=ac.createBiquadFilter(); pk.type="peaking"; pk.Q.value=1.1; pk.gain.value=12;
-      pk.frequency.setValueAtTime(5200,t0); pk.frequency.exponentialRampToValueAtTime(3100,t0+dur);
-      const lp=ac.createBiquadFilter(); lp.type="lowpass"; lp.frequency.value=8200;
-      const g=ac.createGain();
-      g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(0.5,t0+0.07);
-      g.gain.setValueAtTime(0.5,t0+0.30); g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
-      s.connect(hp).connect(pk).connect(lp).connect(g).connect(sfxBus); s.start(t0); s.stop(t0+dur);
-      return 2.6;
+    shush(t0){ shushVoice(audioCtx,sfxGain,t0,1.55,1); return 3; },
+    shush2(t0){
+      shushVoice(audioCtx,sfxGain,t0,0.34,0.85); shushVoice(audioCtx,sfxGain,t0+0.5,0.34,0.85);
+      shushVoice(audioCtx,sfxGain,t0+1.0,1.2,1); return 3.6;
     },
     beep(t0){ tone(880,0.25,0.35,t0,sfxBus,"sine",0.02); return 1.4; },
     voice(){ speakAlert(); return 2.6; },
@@ -913,7 +1121,9 @@
   }
 
   // ---------- Física ----------
-  const GRAVITY=0.42, REST=0.82, FRICTION=0.995, WALL_REST=0.9;
+  const FRICTION=0.995, WALL_REST=0.9;
+  const GRAVITIES={normal:0.42, moon:0.16, space:0, heavy:0.75};
+  const BOUNCES={low:0.55, normal:0.82, high:0.95};
   let kickAccumulator=0;
 
   function physics(){
@@ -923,24 +1133,30 @@
     // ataque rápido para que la barra suba al hablar, caída suave al callar
     smooth += (level - smooth) * (level>smooth ? 0.5 : 0.08);
 
-    // impulso hacia arriba proporcional al ruido, sobre pelotas cercanas al piso
+    const G=GRAVITIES[settings.gravity]??0.42, REST=BOUNCES[settings.bounce]??0.82;
+    const zeroG = G===0, speed=settings.speed;
     kickAccumulator += level;
     const kickThreshold = 0.22;
     for(const b of balls){
-      b.vy += GRAVITY;
+      b.vy += G*speed;
       const grounded = b.y > H - b.r - 4 && Math.abs(b.vy) < 6;
-      if(level > kickThreshold && (grounded || Math.random()<level*0.12)){
-        b.vy -= (1.5 + level*22) * (0.5+Math.random());
-        b.vx += (Math.random()-0.5) * level * 10;
+      if(level > kickThreshold){
+        if(zeroG){
+          if(Math.random()<level*0.25){ const a=Math.random()*Math.PI*2, f=(1+level*14)*(0.5+Math.random()); b.vx+=Math.cos(a)*f; b.vy+=Math.sin(a)*f; }
+        } else if(grounded || Math.random()<level*0.12){
+          b.vy -= (1.5 + level*22) * (0.5+Math.random()) * Math.sqrt(Math.max(G,0.1)/0.42);
+          b.vx += (Math.random()-0.5) * level * 10;
+        }
       }
-      b.vx *= FRICTION; b.vy *= FRICTION;
-      b.x += b.vx; b.y += b.vy;
-      b.angle += b.spin + b.vx*0.01;
+      if(zeroG){ b.vx*=0.985; b.vy*=0.985; if(Math.hypot(b.vx,b.vy)<0.25){ b.vx+=(Math.random()-0.5)*0.2; b.vy+=(Math.random()-0.5)*0.2; } }
+      else { b.vx *= FRICTION; b.vy *= FRICTION; }
+      b.x += b.vx*speed; b.y += b.vy*speed;
+      b.angle += (b.spin + b.vx*0.01)*speed;
 
       // paredes
       if(b.x < b.r){ b.x=b.r; b.vx=-b.vx*WALL_REST; }
       if(b.x > W-b.r){ b.x=W-b.r; b.vx=-b.vx*WALL_REST; }
-      if(b.y > H-b.r){ b.y=H-b.r; b.vy=-b.vy*REST; if(Math.abs(b.vy)<0.6) b.vy=0; }
+      if(b.y > H-b.r){ b.y=H-b.r; b.vy=-b.vy*REST; if(!zeroG && Math.abs(b.vy)<0.6) b.vy=0; }
       if(b.y < b.r){ b.y=b.r; b.vy=-b.vy*WALL_REST; }
     }
 
@@ -966,11 +1182,62 @@
   // ---------- Render ----------
   function drawBall(b){
     const x=b.x, y=b.y, r=b.r;
+    const set=EMOJI_SETS[settings.theme];
+    if(set){
+      ctx.save(); ctx.translate(x,y); ctx.rotate(b.angle*0.15);
+      ctx.font = (r*1.7)+"px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(set[b.ei%set.length],0,r*0.05); ctx.restore(); return;
+    }
     switch(settings.theme){
-      case "emoji":{
-        ctx.save(); ctx.translate(x,y); ctx.rotate(b.angle*0.15);
-        ctx.font = (r*1.7)+"px serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
-        ctx.fillText(b.emoji,0,r*0.05); ctx.restore(); break;
+      case "letters":{
+        const g=ctx.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r);
+        g.addColorStop(0,"#fff"); g.addColorStop(0.15,shade(b.color,40)); g.addColorStop(1,b.color);
+        ctx.fillStyle=g; circle(x,y,r); ctx.fill();
+        ctx.save(); ctx.translate(x,y); ctx.rotate(Math.sin(b.angle)*0.3);
+        ctx.fillStyle="rgba(255,255,255,.95)"; ctx.font="800 "+(r*1.05)+"px 'Baloo 2', sans-serif";
+        ctx.textAlign="center"; ctx.textBaseline="middle";
+        ctx.fillText(LETTERS[b.ei%LETTERS.length],0,r*0.08); ctx.restore(); break;
+      }
+      case "stars":{
+        ctx.save(); ctx.translate(x,y); ctx.rotate(b.angle*0.4);
+        ctx.shadowColor="rgba(0,0,0,.15)"; ctx.shadowBlur=r*0.3; ctx.shadowOffsetY=r*0.12;
+        const g=ctx.createRadialGradient(-r*0.3,-r*0.3,r*0.1,0,0,r);
+        g.addColorStop(0,shade(b.color,70)); g.addColorStop(1,b.color);
+        ctx.fillStyle=g; ctx.beginPath();
+        for(let i=0;i<10;i++){ const a=i/10*Math.PI*2-Math.PI/2, rr=i%2?r*0.48:r*1.08; ctx.lineTo(Math.cos(a)*rr,Math.sin(a)*rr); }
+        ctx.closePath(); ctx.lineJoin="round"; ctx.fill();
+        ctx.shadowBlur=0; ctx.lineWidth=r*0.12; ctx.strokeStyle=b.color; ctx.stroke();
+        ctx.fillStyle="#3a2b00"; circle(-r*0.18,-r*0.05,r*0.08); ctx.fill(); circle(r*0.18,-r*0.05,r*0.08); ctx.fill();
+        ctx.restore(); break;
+      }
+      case "hearts":{
+        ctx.save(); ctx.translate(x,y); ctx.rotate(Math.sin(b.angle)*0.25);
+        const s=1+0.06*Math.sin(performance.now()/180+b.ei); ctx.scale(s,s);
+        ctx.shadowColor="rgba(0,0,0,.15)"; ctx.shadowBlur=r*0.3; ctx.shadowOffsetY=r*0.12;
+        const g=ctx.createRadialGradient(-r*0.35,-r*0.4,r*0.1,0,0,r*1.1);
+        g.addColorStop(0,shade(b.color,70)); g.addColorStop(1,b.color);
+        ctx.fillStyle=g; ctx.beginPath();
+        ctx.moveTo(0,r*0.95);
+        ctx.bezierCurveTo(-r*1.25,r*0.1,-r*0.75,-r*1.05,0,-r*0.4);
+        ctx.bezierCurveTo(r*0.75,-r*1.05,r*1.25,r*0.1,0,r*0.95);
+        ctx.fill(); ctx.shadowBlur=0;
+        ctx.fillStyle="rgba(255,255,255,.5)"; ctx.beginPath(); ctx.ellipse(-r*0.42,-r*0.38,r*0.16,r*0.1,-0.7,0,Math.PI*2); ctx.fill();
+        ctx.restore(); break;
+      }
+      case "planets":{
+        const g=ctx.createRadialGradient(x-r*0.35,y-r*0.35,r*0.1,x,y,r);
+        g.addColorStop(0,shade(b.color,60)); g.addColorStop(0.7,b.color); g.addColorStop(1,shade(b.color,-50));
+        ctx.save(); ctx.translate(x,y); ctx.rotate(-0.35);
+        const ring=b.ei%3===0;
+        if(ring){ ctx.strokeStyle=hexToRgba(shade2(b.color),0.85); ctx.lineWidth=r*0.14; ctx.beginPath(); ctx.ellipse(0,0,r*1.6,r*0.42,0,Math.PI,Math.PI*2); ctx.stroke(); }
+        ctx.fillStyle=g; circle(0,0,r); ctx.fill();
+        ctx.save(); circle(0,0,r); ctx.clip();
+        ctx.fillStyle="rgba(255,255,255,.18)";
+        for(let i=-2;i<=2;i++){ ctx.fillRect(-r,i*r*0.38+Math.sin(b.angle+i)*r*0.05,r*2,r*0.12); }
+        if(b.ei%3===1){ ctx.fillStyle="rgba(0,0,0,.14)"; circle(r*0.3,r*0.2,r*0.2); ctx.fill(); circle(-r*0.35,-r*0.3,r*0.12); ctx.fill(); }
+        ctx.restore();
+        if(ring){ ctx.strokeStyle=hexToRgba(shade2(b.color),0.85); ctx.lineWidth=r*0.14; ctx.beginPath(); ctx.ellipse(0,0,r*1.6,r*0.42,0,0,Math.PI); ctx.stroke(); }
+        ctx.restore(); break;
       }
       case "numbers":{
         const g=ctx.createRadialGradient(x-r*0.3,y-r*0.3,r*0.1,x,y,r);
@@ -1139,10 +1406,252 @@
   }
 
   function hexToRgba(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16&255},${n>>8&255},${n&255},${a})`; }
+  function shade2(hex){ let n=parseInt(hex.slice(1),16); const c=v=>Math.min(255,v+90); return "#"+[c(n>>16&255),c(n>>8&255),c(n&255)].map(v=>v.toString(16).padStart(2,"0")).join(""); }
   function shade(hex,amt){
     let n=parseInt(hex.slice(1),16), r=(n>>16&255)+amt, g=(n>>8&255)+amt, b=(n&255)+amt;
     r=Math.max(0,Math.min(255,r)); g=Math.max(0,Math.min(255,g)); b=Math.max(0,Math.min(255,b));
     return `rgb(${r},${g},${b})`;
+  }
+
+  // ---------- Escenarios de fondo (dibujados y animados; reaccionan al ruido) ----------
+  let SD={};              // datos del escenario actual
+  let sceneT=0, lastSceneTs=0;
+  function rng(seed){ return ()=>{ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  function buildScene(){
+    const R=rng(42), s=settings.scene; SD={};
+    const n=k=>Math.max(3,Math.round(W/k));
+    if(s==="forest"||s==="snow"||s==="night"){
+      SD.mtn=[0,1].map(l=>{ const pts=[]; for(let x=-50;x<=W+50;x+=W/8) pts.push([x+R()*60, H*(0.36+l*0.08)+R()*H*0.12]); return pts; });
+      SD.trees=[ {c:n(34),y:0.66,h:[0.10,0.16]}, {c:n(60),y:0.76,h:[0.16,0.24]}, {c:n(110),y:0.93,h:[0.26,0.38]} ]
+        .map((L,li)=>Array.from({length:L.c},()=>({x:R()*W, y:H*(L.y+R()*0.04), h:H*(L.h[0]+R()*(L.h[1]-L.h[0])), p:R()*6, l:li})));
+    }
+    if(s==="park"||s==="autumn"){
+      SD.clouds=Array.from({length:5},()=>({x:R()*W, y:H*(0.06+R()*0.22), s:0.6+R()*0.8, v:0.08+R()*0.15}));
+      SD.trees=Array.from({length:n(150)+2},(_,i)=>({x:(i+0.3+R()*0.4)*W/(n(150)+2), y:H*(0.70+R()*0.1), h:H*(0.2+R()*0.12), p:R()*6, c:R()}));
+      SD.flowers=Array.from({length:n(14)},()=>({x:R()*W, y:H*(0.8+R()*0.2), c:R()}));
+      SD.leaves=Array.from({length:s==="autumn"?40:0},()=>({x:R()*W, y:R()*H, v:0.4+R()*0.8, p:R()*6, c:R()}));
+    }
+    if(s==="beach"){
+      SD.clouds=Array.from({length:4},()=>({x:R()*W, y:H*(0.05+R()*0.2), s:0.6+R()*0.7, v:0.1+R()*0.15}));
+      SD.gulls=Array.from({length:3},()=>({x:R()*W, y:H*(0.1+R()*0.18), v:0.3+R()*0.4, p:R()*6}));
+    }
+    if(s==="underwater"){
+      SD.weeds=Array.from({length:n(45)},()=>({x:R()*W, h:H*(0.12+R()*0.3), p:R()*6, c:R()}));
+      SD.bubbles=Array.from({length:40},()=>({x:R()*W, y:R()*H, r:2+R()*6, v:0.3+R()*0.9, p:R()*6}));
+      SD.fish=Array.from({length:5},()=>({x:R()*W, y:H*(0.15+R()*0.55), v:(0.3+R()*0.6)*(R()<0.5?-1:1), c:R(), s:0.7+R()*0.6}));
+    }
+    if(s==="snow"||s==="night"||s==="space"){
+      SD.stars=Array.from({length:Math.round(W*H/5000)},()=>({x:R()*W, y:R()*H*(s==="space"?1:0.65), r:0.4+R()*1.5, p:R()*6}));
+    }
+    if(s==="snow") SD.flakes=Array.from({length:120},()=>({x:R()*W, y:R()*H, r:1+R()*3, v:0.4+R()*1.2, p:R()*6}));
+    if(s==="night") SD.flies=Array.from({length:22},()=>({x:R()*W, y:H*(0.6+R()*0.35), p:R()*6, q:R()*6}));
+    if(s==="space"){ SD.shoot={t:-1}; SD.neb=[{x:W*0.2,y:H*0.3,r:Math.max(W,H)*0.4,c:"rgba(155,93,229,.18)"},{x:W*0.8,y:H*0.75,r:Math.max(W,H)*0.35,c:"rgba(0,187,249,.13)"}]; }
+    if(s==="city"){
+      SD.bld=[0,1].map(l=>{ const arr=[]; let x=-10; while(x<W+10){ const w=(l?60:40)+R()*(l?70:50), h=H*(l?0.22+R()*0.3:0.3+R()*0.25); arr.push({x,w,h,win:Array.from({length:60},()=>R()<0.45)}); x+=w+(l?6:2); } return arr; });
+      SD.clouds=Array.from({length:3},()=>({x:R()*W, y:H*(0.08+R()*0.2), s:0.6+R()*0.6, v:0.06+R()*0.1}));
+    }
+    if(s==="chalk") SD.doodles=["A B C","1 + 1 = 2","☺","♪ ♫","★","Hello!","¡Hola!","3 × 4 = 12"].map((t,i)=>({t, x:0.12+R()*0.76, y:0.18+((i*0.37+R()*0.2)%0.7), a:(R()-0.5)*0.3, s:0.8+R()*0.8}));
+  }
+
+  // ---- utilidades de dibujo ----
+  function vgrad(y0,y1,stops){ const g=sctx.createLinearGradient(0,y0,0,y1); stops.forEach((c,i)=>g.addColorStop(i/(stops.length-1),c)); return g; }
+  function fillAll(f){ sctx.fillStyle=f; sctx.fillRect(0,0,W,H); }
+  function scircle(x,y,r){ sctx.beginPath(); sctx.arc(x,y,r,0,Math.PI*2); }
+  function sun(x,y,r,core,glow){
+    const g=sctx.createRadialGradient(x,y,r*0.2,x,y,r*3.2); g.addColorStop(0,glow); g.addColorStop(1,"rgba(255,255,255,0)");
+    sctx.fillStyle=g; scircle(x,y,r*3.2); sctx.fill(); sctx.fillStyle=core; scircle(x,y,r); sctx.fill();
+  }
+  function cloud(x,y,s,col){
+    sctx.fillStyle=col||"rgba(255,255,255,.9)"; sctx.beginPath();
+    for(const [dx,dy,r] of [[0,0,28],[30,-14,34],[64,0,26],[34,10,26]]){ sctx.moveTo(x+dx*s+r*s,y+dy*s); sctx.arc(x+dx*s,y+dy*s,r*s,0,Math.PI*2); }
+    sctx.fill();
+  }
+  function ridge(pts,color,bottom){
+    sctx.fillStyle=color; sctx.beginPath(); sctx.moveTo(-60,bottom);
+    for(let i=0;i<pts.length;i++){ const [x,y]=pts[i]; if(i===0) sctx.lineTo(x,y); else { const [px,py]=pts[i-1]; sctx.quadraticCurveTo(px,py,(px+x)/2,(py+y)/2); } }
+    sctx.lineTo(W+60,bottom); sctx.closePath(); sctx.fill();
+  }
+  function hill(y,amp,freq,ph,color){
+    sctx.fillStyle=color; sctx.beginPath(); sctx.moveTo(0,H);
+    for(let x=0;x<=W+20;x+=20) sctx.lineTo(x,y+Math.sin(x/W*Math.PI*freq+ph)*amp);
+    sctx.lineTo(W,H); sctx.closePath(); sctx.fill();
+  }
+  function pine(x,y,h,col,sway,snow){
+    sctx.save(); sctx.translate(x,y); sctx.rotate(sway);
+    sctx.fillStyle="#5b3a22"; sctx.fillRect(-h*0.035,-h*0.12,h*0.07,h*0.14);
+    for(let i=0;i<3;i++){
+      const w=h*(0.36-i*0.08), top=-h*(0.45+i*0.2), bot=-h*(0.1+i*0.22);
+      sctx.fillStyle=col; sctx.beginPath(); sctx.moveTo(0,top-h*0.12); sctx.lineTo(w,bot); sctx.lineTo(-w,bot); sctx.closePath(); sctx.fill();
+      if(snow){ sctx.fillStyle="rgba(255,255,255,.92)"; sctx.beginPath(); sctx.moveTo(0,top-h*0.12); sctx.lineTo(w*0.45,top+h*0.06); sctx.lineTo(-w*0.45,top+h*0.06); sctx.closePath(); sctx.fill(); }
+    }
+    sctx.restore();
+  }
+  function roundTree(x,y,h,col,sway){
+    sctx.save(); sctx.translate(x,y);
+    sctx.fillStyle="#6b4429"; sctx.beginPath(); sctx.moveTo(-h*0.05,0); sctx.lineTo(h*0.05,0); sctx.lineTo(h*0.03,-h*0.55); sctx.lineTo(-h*0.03,-h*0.55); sctx.fill();
+    sctx.rotate(sway);
+    const r=h*0.26;
+    sctx.fillStyle=shadeAny(col,-0.18); sctx.beginPath(); sctx.arc(-r*0.7,-h*0.62,r,0,7); sctx.arc(r*0.7,-h*0.62,r,0,7); sctx.fill();
+    sctx.fillStyle=col; sctx.beginPath(); sctx.arc(0,-h*0.82,r*1.15,0,7); sctx.arc(-r*0.55,-h*0.7,r*0.85,0,7); sctx.arc(r*0.55,-h*0.7,r*0.85,0,7); sctx.fill();
+    sctx.fillStyle="rgba(255,255,255,.14)"; scircle(-r*0.3,-h*0.92,r*0.45); sctx.fill();
+    sctx.restore();
+  }
+  function shadeAny(hex,f){ const n=parseInt(hex.slice(1),16); const c=v=>Math.round(Math.max(0,Math.min(255,v*(1+f)))); return `rgb(${c(n>>16&255)},${c(n>>8&255)},${c(n&255)})`; }
+
+  function drawScene(dt, lvl){
+    const s=settings.scene, t=sceneT;
+    const wind=0.012+lvl*0.2, sp=1+lvl*3; // el ruido agita árboles, olas y partículas
+    sctx.clearRect(0,0,W,H);
+    if(s==="classic") return;
+    if(s==="solid"){ fillAll(settings.solidColor); return; }
+
+    if(s==="forest"){
+      fillAll(vgrad(0,H*0.7,["#9fd3f0","#d9f0f7","#f4f7e6"]));
+      sun(W*0.78,H*0.16,Math.min(W,H)*0.06,"#fff6c9","rgba(255,236,150,.55)");
+      ridge(SD.mtn[0],"#a9c7cf",H); ridge(SD.mtn[1],"#8db3a4",H);
+      const cols=["#6f9d84","#3f7a55","#24533a"];
+      SD.trees.forEach((L,li)=>{ if(li===2) { sctx.fillStyle="#3a6b3f"; sctx.fillRect(0,H*0.9,W,H*0.1); }
+        L.forEach(tr=>pine(tr.x,tr.y,tr.h,cols[li],Math.sin(t*1.4+tr.p)*wind*(0.6+li*0.3),false)); });
+    }
+    else if(s==="park"||s==="autumn"){
+      const aut=s==="autumn";
+      fillAll(vgrad(0,H*0.75,aut?["#ffc98b","#ffe4c2","#fff2e0"]:["#8fd0ff","#c9ecff","#eef9ff"]));
+      sun(W*0.15,H*0.15,Math.min(W,H)*0.055,aut?"#fff1c9":"#fffbe0",aut?"rgba(255,170,90,.5)":"rgba(255,240,170,.55)");
+      for(const c of SD.clouds){ c.x+=c.v*dt*0.06*(1+lvl*2); if(c.x>W+120) c.x=-140; cloud(c.x,c.y,c.s); }
+      hill(H*0.66,H*0.04,2.2,0.5,aut?"#d9a05b":"#a6d98a");
+      hill(H*0.76,H*0.035,3,2,aut?"#b9743a":"#7cc46a");
+      const tc=aut?["#e8762d","#f2a03d","#c94f1f","#f2c14e"]:["#4caf50","#3e9b48","#66bb6a","#2e7d32"];
+      for(const tr of SD.trees) roundTree(tr.x,tr.y,tr.h,tc[Math.floor(tr.c*tc.length)],Math.sin(t*1.3+tr.p)*wind*0.8);
+      hill(H*0.86,H*0.02,4,1,aut?"#a8612c":"#5fb35a");
+      const fc=aut?["#7a3b12","#c9842f","#e8b04b"]:["#ff6b9d","#ffd93d","#ffffff","#b388ff"];
+      for(const f of SD.flowers){ sctx.fillStyle=fc[Math.floor(f.c*fc.length)]; scircle(f.x,Math.max(f.y,H*0.87),3.2); sctx.fill(); }
+      for(const l of SD.leaves){ l.y+=l.v*dt*0.06*sp; l.x+=Math.sin(t+l.p)*0.6+lvl*2; if(l.y>H+10){ l.y=-10; l.x=Math.random()*W; } if(l.x>W+10) l.x=-10;
+        sctx.save(); sctx.translate(l.x,l.y); sctx.rotate(t*2+l.p); sctx.fillStyle=tc[Math.floor(l.c*tc.length)];
+        sctx.beginPath(); sctx.ellipse(0,0,6,3,0,0,7); sctx.fill(); sctx.restore(); }
+    }
+    else if(s==="beach"){
+      const sea=H*0.45, shore=H*0.72;
+      fillAll(vgrad(0,sea,["#6ec6ff","#bfe8ff","#fff3d6"]));
+      sun(W*0.7,sea-H*0.08,Math.min(W,H)*0.07,"#fff2b3","rgba(255,214,120,.5)");
+      for(const c of SD.clouds){ c.x+=c.v*dt*0.06; if(c.x>W+120) c.x=-140; cloud(c.x,c.y,c.s); }
+      for(const g of SD.gulls){ g.x+=g.v*dt*0.06; if(g.x>W+30) g.x=-30; const f=Math.sin(t*6+g.p)*5;
+        sctx.strokeStyle="#334"; sctx.lineWidth=2; sctx.beginPath(); sctx.moveTo(g.x-10,g.y+f*0.4); sctx.quadraticCurveTo(g.x-5,g.y-5-f,g.x,g.y); sctx.quadraticCurveTo(g.x+5,g.y-5-f,g.x+10,g.y+f*0.4); sctx.stroke(); }
+      sctx.fillStyle=vgrad(sea,shore,["#2a9fd6","#1d7fb8","#47b8d8"]); sctx.fillRect(0,sea,W,shore-sea);
+      // velero
+      const bx=(W*0.25+t*12)%(W+200)-100, by=sea+H*0.06+Math.sin(t*1.5)*3*(1+lvl*4);
+      sctx.save(); sctx.translate(bx,by); sctx.rotate(Math.sin(t*1.2)*0.04*(1+lvl*4));
+      sctx.fillStyle="#7a4b2a"; sctx.beginPath(); sctx.moveTo(-30,0); sctx.lineTo(30,0); sctx.lineTo(22,10); sctx.lineTo(-22,10); sctx.fill();
+      sctx.fillStyle="#fff"; sctx.beginPath(); sctx.moveTo(0,-4); sctx.lineTo(0,-52); sctx.lineTo(24,-6); sctx.fill();
+      sctx.fillStyle="#ff6b6b"; sctx.beginPath(); sctx.moveTo(-3,-4); sctx.lineTo(-3,-44); sctx.lineTo(-22,-6); sctx.fill(); sctx.restore();
+      // olas: más altas con más ruido
+      for(let k=0;k<5;k++){
+        const y=sea+(shore-sea)*(0.15+k*0.18), amp=(2+k)*(1+lvl*5);
+        sctx.strokeStyle=`rgba(255,255,255,${0.25+k*0.08})`; sctx.lineWidth=2; sctx.beginPath();
+        for(let x=0;x<=W;x+=12) sctx.lineTo(x,y+Math.sin(x*0.02+t*(1.2+k*0.3)*(1+lvl)+k)*amp);
+        sctx.stroke();
+      }
+      sctx.fillStyle="#f2d59b"; sctx.beginPath(); sctx.moveTo(0,H);
+      for(let x=0;x<=W;x+=12) sctx.lineTo(x,shore+Math.sin(x*0.015+t*0.8)*4*(1+lvl*3));
+      sctx.lineTo(W,H); sctx.fill();
+      sctx.fillStyle="rgba(255,255,255,.55)"; sctx.beginPath();
+      for(let x=0;x<=W;x+=12) sctx.lineTo(x,shore+Math.sin(x*0.015+t*0.8)*4*(1+lvl*3)); sctx.lineTo(W,shore+8); sctx.lineTo(0,shore+8); sctx.fill();
+      // palmera
+      const px=W*0.08, py=H*0.96, ph=H*0.42, sw=Math.sin(t*1.3)*wind;
+      sctx.save(); sctx.translate(px,py); sctx.rotate(0.12+sw*0.5);
+      sctx.strokeStyle="#8a5a33"; sctx.lineWidth=Math.max(10,W*0.012); sctx.lineCap="round"; sctx.beginPath(); sctx.moveTo(0,0); sctx.quadraticCurveTo(ph*0.12,-ph*0.5,ph*0.05,-ph); sctx.stroke();
+      sctx.translate(ph*0.05,-ph);
+      for(let i=0;i<6;i++){ sctx.save(); sctx.rotate(-Math.PI*0.95+i*Math.PI/5+sw*2); sctx.fillStyle=i%2?"#2e8b57":"#3cb371";
+        sctx.beginPath(); sctx.moveTo(0,0); sctx.quadraticCurveTo(ph*0.22,-ph*0.12,ph*0.42,ph*0.06); sctx.quadraticCurveTo(ph*0.2,-ph*0.02,0,0); sctx.fill(); sctx.restore(); }
+      sctx.restore();
+    }
+    else if(s==="underwater"){
+      fillAll(vgrad(0,H,["#5fd3f5","#1f8ac0","#0f3f73"]));
+      sctx.save(); sctx.globalCompositeOperation="lighter";
+      for(let i=0;i<6;i++){ const x=W*(0.1+i*0.17)+Math.sin(t*0.3+i)*40; sctx.fillStyle="rgba(255,255,255,.05)";
+        sctx.beginPath(); sctx.moveTo(x-20,0); sctx.lineTo(x+30,0); sctx.lineTo(x+120,H); sctx.lineTo(x+40,H); sctx.fill(); }
+      sctx.restore();
+      for(const f of SD.fish){ f.x+=f.v*dt*0.06*sp; if(f.x>W+60) f.x=-60; if(f.x<-60) f.x=W+60;
+        const y=f.y+Math.sin(t+f.x*0.01)*8, d=Math.sign(f.v), z=18*f.s; sctx.fillStyle=["#ffb703","#fb8500","#ff6b9d","#8ecae6","#ffd93d"][Math.floor(f.c*5)];
+        sctx.beginPath(); sctx.ellipse(f.x,y,z,z*0.55,0,0,7); sctx.fill();
+        sctx.beginPath(); sctx.moveTo(f.x-d*z*0.8,y); sctx.lineTo(f.x-d*z*1.5,y-z*0.5); sctx.lineTo(f.x-d*z*1.5,y+z*0.5); sctx.fill();
+        sctx.fillStyle="#13293d"; scircle(f.x+d*z*0.5,y-z*0.12,z*0.1); sctx.fill(); }
+      sctx.fillStyle="#e3c88f"; sctx.beginPath(); sctx.moveTo(0,H); for(let x=0;x<=W;x+=20) sctx.lineTo(x,H*0.92+Math.sin(x*0.01)*10); sctx.lineTo(W,H); sctx.fill();
+      for(const w of SD.weeds){ const c=["#2a9d8f","#43aa8b","#90be6d"][Math.floor(w.c*3)]; sctx.strokeStyle=c; sctx.lineWidth=7; sctx.lineCap="round";
+        sctx.beginPath(); sctx.moveTo(w.x,H*0.95); const sw=Math.sin(t*1.2+w.p)*(14+lvl*60);
+        sctx.bezierCurveTo(w.x+sw,H*0.95-w.h*0.33,w.x-sw,H*0.95-w.h*0.66,w.x+sw*0.8,H*0.95-w.h); sctx.stroke(); }
+      for(const b of SD.bubbles){ b.y-=b.v*dt*0.06*sp; if(b.y<-10){ b.y=H+10; b.x=Math.random()*W; }
+        sctx.strokeStyle="rgba(255,255,255,.55)"; sctx.lineWidth=1.5; scircle(b.x+Math.sin(t*2+b.p)*4,b.y,b.r); sctx.stroke(); }
+    }
+    else if(s==="snow"){
+      fillAll(vgrad(0,H*0.7,["#b9cfe8","#dbe7f3","#f4f8fc"]));
+      ridge(SD.mtn[0],"#c9d8ea",H); ridge(SD.mtn[1],"#e8f0f8",H);
+      const cols=["#7e9cae","#4f7487","#2f5466"];
+      SD.trees.forEach((L,li)=>{ if(li===2){ sctx.fillStyle="#ffffff"; sctx.fillRect(0,H*0.9,W,H*0.1); }
+        L.forEach(tr=>pine(tr.x,tr.y,tr.h,cols[li],Math.sin(t*1.4+tr.p)*wind*(0.5+li*0.3),true)); });
+      sctx.fillStyle="#fff";
+      for(const f of SD.flakes){ f.y+=f.v*dt*0.06*sp; f.x+=Math.sin(t+f.p)*0.5+lvl*3; if(f.y>H+5){ f.y=-5; f.x=Math.random()*W; } if(f.x>W+5) f.x=-5;
+        scircle(f.x,f.y,f.r); sctx.fill(); }
+    }
+    else if(s==="night"){
+      fillAll(vgrad(0,H,["#0b1530","#1b2a55","#2c3f73"]));
+      for(const st of SD.stars){ sctx.fillStyle=`rgba(255,255,255,${0.35+0.65*Math.abs(Math.sin(t*(0.8+lvl*4)+st.p))})`; scircle(st.x,st.y,st.r); sctx.fill(); }
+      sun(W*0.8,H*0.18,Math.min(W,H)*0.05,"#fdf6d8","rgba(220,230,255,.25)");
+      sctx.fillStyle="#2c3f73"; scircle(W*0.8+Math.min(W,H)*0.02,H*0.18-Math.min(W,H)*0.012,Math.min(W,H)*0.045); sctx.fill();
+      ridge(SD.mtn[0],"#24345f",H); ridge(SD.mtn[1],"#1a2748",H);
+      const cols=["#1c2b4f","#15213f","#0d1630"];
+      SD.trees.forEach((L,li)=>{ if(li===2){ sctx.fillStyle="#0d1630"; sctx.fillRect(0,H*0.9,W,H*0.1); }
+        L.forEach(tr=>pine(tr.x,tr.y,tr.h,cols[li],Math.sin(t*1.4+tr.p)*wind*(0.5+li*0.3),false)); });
+      for(const f of SD.flies){ const x=f.x+Math.sin(t*0.7+f.p)*30, y=f.y+Math.cos(t*0.9+f.q)*20, a=0.3+0.7*Math.abs(Math.sin(t*1.5+f.p));
+        const g=sctx.createRadialGradient(x,y,0,x,y,10); g.addColorStop(0,`rgba(255,240,140,${a})`); g.addColorStop(1,"rgba(255,240,140,0)"); sctx.fillStyle=g; scircle(x,y,10); sctx.fill(); }
+    }
+    else if(s==="space"){
+      fillAll(vgrad(0,H,["#0b0b1e","#16123a","#0b0b1e"]));
+      for(const nb of SD.neb){ const g=sctx.createRadialGradient(nb.x,nb.y,0,nb.x,nb.y,nb.r); g.addColorStop(0,nb.c); g.addColorStop(1,"rgba(0,0,0,0)"); sctx.fillStyle=g; sctx.fillRect(0,0,W,H); }
+      for(const st of SD.stars){ sctx.fillStyle=`rgba(255,255,255,${0.3+0.7*Math.abs(Math.sin(t*(0.6+lvl*5)+st.p))})`; scircle(st.x,st.y,st.r); sctx.fill(); }
+      const pr=Math.min(W,H)*0.14, px=W*0.82, py=H*0.72;
+      const g=sctx.createRadialGradient(px-pr*0.4,py-pr*0.4,pr*0.1,px,py,pr); g.addColorStop(0,"#ffd6a5"); g.addColorStop(0.6,"#f4845f"); g.addColorStop(1,"#6d2e46");
+      sctx.save(); sctx.translate(px,py); sctx.rotate(-0.3);
+      sctx.strokeStyle="rgba(255,214,165,.6)"; sctx.lineWidth=pr*0.12; sctx.beginPath(); sctx.ellipse(0,0,pr*1.7,pr*0.4,0,Math.PI,Math.PI*2); sctx.stroke();
+      sctx.fillStyle=g; scircle(0,0,pr); sctx.fill();
+      sctx.beginPath(); sctx.ellipse(0,0,pr*1.7,pr*0.4,0,0,Math.PI); sctx.stroke(); sctx.restore();
+      sctx.fillStyle="#cfd8e6"; scircle(W*0.14,H*0.2,pr*0.32); sctx.fill(); sctx.fillStyle="rgba(0,0,0,.12)"; scircle(W*0.14+pr*0.08,H*0.2+pr*0.05,pr*0.08); sctx.fill();
+      if(SD.shoot.t<0 && Math.random()<0.003+lvl*0.02) SD.shoot={t:0,x:Math.random()*W*0.7,y:Math.random()*H*0.4};
+      if(SD.shoot.t>=0){ const k=SD.shoot.t, x=SD.shoot.x+k*500, y=SD.shoot.y+k*220; SD.shoot.t+=dt/900;
+        const gg=sctx.createLinearGradient(x-90,y-40,x,y); gg.addColorStop(0,"rgba(255,255,255,0)"); gg.addColorStop(1,"rgba(255,255,255,.9)");
+        sctx.strokeStyle=gg; sctx.lineWidth=2; sctx.beginPath(); sctx.moveTo(x-90,y-40); sctx.lineTo(x,y); sctx.stroke(); if(SD.shoot.t>1) SD.shoot.t=-1; }
+    }
+    else if(s==="city"){
+      fillAll(vgrad(0,H,["#ffb88c","#ff8e72","#c56183","#5b3a6e"]));
+      sun(W*0.5,H*0.52,Math.min(W,H)*0.09,"#ffe29a","rgba(255,200,120,.45)");
+      for(const c of SD.clouds){ c.x+=c.v*dt*0.06; if(c.x>W+120) c.x=-140; cloud(c.x,c.y,c.s,"rgba(255,230,220,.6)"); }
+      SD.bld.forEach((L,li)=>{ for(const b of L){
+        const top=H-b.h-(li?0:H*0.08); sctx.fillStyle=li?"#2b1d3d":"#5a3f73"; sctx.fillRect(b.x,top,b.w,H-top);
+        if(li){ let k=0; for(let y=top+12;y<H-20;y+=22) for(let x=b.x+8;x<b.x+b.w-12;x+=16){ const on=b.win[(k++)%60] !== (lvl>0.5 && Math.sin(t*8+k)>0.6);
+          sctx.fillStyle=on?"rgba(255,214,120,.9)":"rgba(255,255,255,.07)"; sctx.fillRect(x,y,8,11); } }
+      }});
+    }
+    else if(s==="chalk"){
+      fillAll(vgrad(0,H,["#2f5d4a","#284f3f"]));
+      sctx.fillStyle="rgba(255,255,255,.035)"; for(let i=0;i<8;i++){ sctx.beginPath(); sctx.ellipse(W*(i*0.13+0.05),H*(0.3+0.4*((i*7)%3)/2),W*0.12,H*0.05,0.2,0,7); sctx.fill(); }
+      sctx.fillStyle="rgba(255,255,255,.22)"; sctx.textAlign="center"; sctx.textBaseline="middle";
+      for(const d of SD.doodles){ sctx.save(); sctx.translate(d.x*W,d.y*H); sctx.rotate(d.a); sctx.font=`700 ${Math.round(28*d.s)}px 'Baloo 2', sans-serif`; sctx.fillText(d.t,0,0); sctx.restore(); }
+      const fw=Math.max(14,Math.min(W,H)*0.025); sctx.strokeStyle="#8b5a2b"; sctx.lineWidth=fw; sctx.strokeRect(fw/2,fw/2,W-fw,H-fw);
+      sctx.fillStyle="#a0522d"; sctx.fillRect(fw,H-fw*1.6,W-fw*2,fw*0.6);
+      sctx.fillStyle="#fff"; sctx.fillRect(W*0.2,H-fw*1.95,40,8); sctx.fillStyle="#ffd93d"; sctx.fillRect(W*0.2+50,H-fw*1.95,34,8);
+    }
+    else if(s==="notebook"){
+      fillAll("#fdfdf8");
+      sctx.strokeStyle="#b9d4ec"; sctx.lineWidth=1.2; for(let y=110;y<H;y+=34){ sctx.beginPath(); sctx.moveTo(0,y); sctx.lineTo(W,y); sctx.stroke(); }
+      sctx.strokeStyle="#f28b8b"; sctx.lineWidth=2; sctx.beginPath(); sctx.moveTo(80,0); sctx.lineTo(80,H); sctx.stroke();
+      sctx.fillStyle="#e3e6ea"; for(let y=H*0.18;y<H;y+=H*0.3){ scircle(36,y,11); sctx.fill(); }
+    }
+  }
+
+  buildScene();
+  let lastClock="";
+  function updateClock(){
+    const d=new Date(), txt=d.getHours()+":"+String(d.getMinutes()).padStart(2,"0");
+    if(txt!==lastClock){ lastClock=txt; document.getElementById("clock").textContent=txt; }
   }
 
   // ---------- Fondo reactivo + medidor + alerta ----------
@@ -1161,7 +1670,7 @@
     const calmA=mixArr([233,246,241],[232,236,252],calmMix), calmB=mixArr([214,237,228],[212,220,246],calmMix);
     const hotA=[255,236,224], hotB=[255,213,178];
     bgEl.style.background=`radial-gradient(120% 120% at 50% 0%, rgb(${mix(calmA,hotA,lvl)}), rgb(${mix(calmB,hotB,lvl)}))`;
-    vignEl.style.boxShadow=`inset 0 0 220px rgba(240,102,63,${(lvl*0.55).toFixed(2)})`;
+    vignEl.style.boxShadow=`inset 0 0 220px rgba(240,102,63,${(settings.redGlow?lvl*0.55:0).toFixed(2)})`;
 
     meterFill.style.transform=`scaleX(${lvl.toFixed(3)})`;
     meterThr.style.left=settings.threshold+"%";
@@ -1176,7 +1685,7 @@
     const over = pct >= thr;
     if(over){
       alertHold = performance.now();
-      if(!alertActive){ alertActive=true; episodeSounded=false; alertBanner.classList.add("show"); }
+      if(!alertActive){ alertActive=true; episodeSounded=false; if(settings.showBanner) alertBanner.classList.add("show"); }
       playAlertSound();
     }
     else if(alertActive && performance.now()-alertHold > 700){ alertActive=false; alertBanner.classList.remove("show"); }
@@ -1199,13 +1708,20 @@
   }
 
   // ---------- Loop ----------
-  function loop(){
+  function loop(ts){
+    const dt=Math.min(50, (ts||0)-lastSceneTs || 16); lastSceneTs=ts||0;
     readLevel();
     physics();
-    ctx.clearRect(0,0,W,H);
+    if(settings.sceneMotion) sceneT+=dt/1000;
+    drawScene(settings.sceneMotion?dt:0, smooth);
+    if(settings.trails){
+      ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.globalCompositeOperation="destination-out";
+      ctx.fillStyle="rgba(0,0,0,.22)"; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.restore();
+    } else ctx.clearRect(0,0,W,H);
     for(const b of balls) drawBall(b);
     updateAmbience();
     updateCalmTimer();
+    if(settings.showClock) updateClock();
     requestAnimationFrame(loop);
   }
 
@@ -1318,9 +1834,9 @@
   ["sens","thr","total","sfxVol","calmVol","calmVolChip"].forEach(id=>$(id).addEventListener("change", save));
 
   // interruptores
-  function bindToggle(id, key){
+  function bindToggle(id, key, after){
     const el=$(id); el.classList.toggle("on", settings[key]);
-    el.addEventListener("click", ()=>{ settings[key]=!settings[key]; el.classList.toggle("on",settings[key]); save(); });
+    el.addEventListener("click", ()=>{ settings[key]=!settings[key]; el.classList.toggle("on",settings[key]); save(); if(after) after(); });
   }
   bindToggle("repeatToggle","alertRepeat");
   bindToggle("duckToggle","calmDuck");
@@ -1335,7 +1851,57 @@
     });
     sync();
   }
-  bindSeg("themeSeg","theme","theme",String);
+  bindSeg("gravSeg","v","gravity",String, ()=>{
+    if(settings.gravity==="space") for(const b of balls){ const a=Math.random()*Math.PI*2; b.vx=Math.cos(a)*3; b.vy=Math.sin(a)*3; }
+  });
+  bindSeg("bounceSeg","v","bounce",String);
+  bindSeg("speedSeg","v","speed",Number);
+  bindToggle("trailsToggle","trails");
+  bindToggle("motionToggle","sceneMotion");
+  bindToggle("glowToggle","redGlow");
+  bindToggle("bannerToggle","showBanner", ()=>{ if(!settings.showBanner) alertBanner.classList.remove("show"); });
+  bindToggle("meterToggle","showMeter", syncBody);
+  bindToggle("clockToggle","showClock", syncBody);
+  function syncBody(){
+    document.body.classList.toggle("no-meter", !settings.showMeter);
+    document.body.classList.toggle("show-clock", settings.showClock);
+    document.body.classList.toggle("dark-scene", DARK_SCENES.has(settings.scene));
+    $("solidField").style.display = settings.scene==="solid" ? "" : "none";
+  }
+
+  // mosaicos de tipos de pelota, paletas y escenarios
+  function buildTiles(){
+    $("themeTiles").innerHTML = BALL_THEMES.map(th=>`<button class="tile${th.id===settings.theme?" on":""}" data-id="${th.id}"><span class="em">${th.ic}</span>${t("th_"+th.id)}</button>`).join("");
+    $("palTiles").innerHTML = Object.keys(PALETTES).map(k=>`<button class="pal${k===settings.palette?" on":""}" data-id="${k}"><span class="bar">${PALETTES[k].slice(0,6).map(c=>`<i style="background:${c}"></i>`).join("")}</span>${t("pal_"+k)}</button>`).join("");
+    $("sceneTiles").innerHTML = SCENES.map(sc=>`<button class="tile${sc.id===settings.scene?" on":""}" data-id="${sc.id}"><span class="sw" style="background:${sc.id==="solid"?settings.solidColor:sc.bg}">${sc.ic}</span>${t("sc_"+sc.id)}</button>`).join("");
+  }
+  function tilePicker(id, key, after){
+    $(id).addEventListener("click", e=>{
+      const b=e.target.closest("[data-id]"); if(!b) return;
+      settings[key]=b.dataset.id; save();
+      $(id).querySelectorAll("[data-id]").forEach(x=>x.classList.toggle("on",x===b));
+      if(after) after();
+    });
+  }
+  tilePicker("themeTiles","theme");
+  tilePicker("palTiles","palette", applyPalette);
+  tilePicker("sceneTiles","scene", ()=>{ buildScene(); syncBody(); });
+  $("size").addEventListener("input", e=>{ settings.size=+e.target.value; $("sizeVal").textContent=e.target.value+"%"; applySize(); });
+  $("size").addEventListener("change", save);
+  $("solidColor").addEventListener("input", e=>{
+    settings.solidColor=e.target.value; save();
+    const sw=$("sceneTiles").querySelector('[data-id="solid"] .sw'); if(sw) sw.style.background=settings.solidColor;
+  });
+  function applyMessages(){
+    const a=alertBanner.querySelector(".big"), b=alertBanner.querySelector(".sub");
+    a.textContent = settings.msgTitle.trim() || t("tooLoud");
+    b.textContent = settings.msgSub.trim() || t("shush");
+    $("msgTitle").placeholder=t("tooLoud"); $("msgSub").placeholder=t("shush");
+  }
+  for(const id of ["msgTitle","msgSub"]){
+    $(id).value=settings[id];
+    $(id).addEventListener("input", e=>{ settings[id]=e.target.value; applyMessages(); save(); });
+  }
   bindSeg("timerSeg","min","calmMinutes",Number, ()=>{
     if(calmOn) calmEnd = settings.calmMinutes>0 ? performance.now()+settings.calmMinutes*60000 : 0;
     lastTimerText="";
@@ -1349,7 +1915,7 @@
     document.querySelectorAll("[data-i18n-title]").forEach(el=>{ const v=t(el.getAttribute("data-i18n-title")); el.title=v; el.setAttribute("aria-label",v); });
     $("closeBtn").setAttribute("aria-label",t("close")); $("calmVolChip").setAttribute("aria-label",t("volume"));
     document.querySelectorAll(".langswitch button").forEach(x=>x.classList.toggle("on",x.dataset.lang===lang));
-    buildCards(); syncCalmUI(); lastStatus=-1;
+    buildCards(); buildTiles(); applyMessages(); syncCalmUI(); lastStatus=-1;
   }
   document.querySelector(".langswitch").addEventListener("click", e=>{
     const b=e.target.closest("button"); if(!b) return;
@@ -1400,6 +1966,9 @@
   $("total").value=settings.total; $("totalVal").textContent=settings.total;
   $("sfxVol").value=settings.sfxVol; $("sfxVal").textContent=settings.sfxVol+"%";
   setCalmVol(settings.calmVol);
+  $("size").value=settings.size; $("sizeVal").textContent=settings.size+"%";
+  $("solidColor").value=settings.solidColor;
+  syncBody();
   applyLang();
   syncMicUI();
   loop();
